@@ -8,7 +8,7 @@ import java.awt.event.ActionListener;
 
 import Core.CPU;
 import Main.SettingsFile;
-import static Utilities.Utils.DebugStringConversions.*;
+import static Utilities.Utils.nString.*;
 
 public class MainWindow extends JFrame {
     JFrame mainWindow = this;
@@ -43,7 +43,10 @@ public class MainWindow extends JFrame {
         debugArea.setStepActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                String instruction = cpu.step_disassemble();
+
+                int cycle = cpu.stepExecute();
+                String instruction = cpu.getCurrentInstruction();
+
                 debugArea.setNmemonic1Text(instruction);
                 debugArea.setPC(hexToString16(cpu.getPC()));
             }

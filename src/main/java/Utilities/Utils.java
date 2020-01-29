@@ -1,7 +1,7 @@
 package Utilities;
 
 public class Utils {
-    public static class DebugStringConversions {
+    public static class nString {
         // Java support Integer.toHexString or toBinaryString
         // but it does not support it for short
 
