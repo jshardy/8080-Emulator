@@ -19,15 +19,16 @@ public class Memory {
 
     public void writeByte(int address, int value) throws IllegalAccessError {
         if(address >= 0x4000) {
-            // Space Invaders only
+            // Space Invaders only - mirror ram
             address &= 0x3ff;
         }
         memory[address] = value;
 
-        //f(address >= 0x2400) {
+        if(address >= 0x2400 && address <= 0x3fff) {
             // Video
             // Paint on screen the value at (address - 0x2400)
-        //}
+            // SetPixel(address - 2400, value);
+        }
         printMemoryAccess(address, true);
     }
 

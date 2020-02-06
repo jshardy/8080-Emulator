@@ -1,6 +1,10 @@
 package Core;
 
 import Utilities.Utils.nString;
+import Core.CPUChanged;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class CPU {
     private class Registers {
@@ -23,7 +27,7 @@ public class CPU {
         }
 
         public int DE() {
-            return (D << 8) | D;
+            return (D << 8) | E;
         }
 
         public void DE(int value) {
@@ -60,23 +64,63 @@ public class CPU {
         }
     }
 
-
     private Memory memory;
     private Registers register = new Registers();
     private Flags flag = new Flags();
     private String currentInstruction;
     private int PC = 0;
+    private int oldPC = 0;
+    private int length = 0;
     private int SP = 0;
     private boolean interrupts = true;
     private boolean halt = false;
+    private ArrayList<CPUChanged> listCallbacks = new ArrayList<>();
+    private int CPUChanged_Count = 0;
 
     public CPU(byte[] mem) {
         memory = new Memory(mem);
         memory.printOutMemory();
     }
 
-    public int getPC() {
-        return PC;
+    public void addUpdateCallback(CPUChanged changed) {
+        listCallbacks.add(changed);
+    }
+
+    private void callUpdate() {
+        for (CPUChanged listCallback : listCallbacks) {
+            listCallback.Updated(this);
+        }
+    }
+
+    public int getPC() { return PC; }
+    public int getCurrentInstructionAddress() { return oldPC; }
+    public int getSP() { return SP; }
+    public int getA() { return register.A; }
+    public int getB() { return register.B; }
+    public int getC() { return register.C; }
+    public int getD() { return register.D; }
+    public int getE() { return register.E; }
+    public int getH() { return register.H; }
+    public int getL() { return register.L; }
+    public int getBC() { return register.BC(); }
+    public int getDE() { return register.DE(); }
+    public int getHL() { return register.HL(); }
+    public int getPSW() { return flag.PSW(); }
+    public boolean getCarry() { return flag.carry; }
+    public boolean getZero() { return flag.zero; }
+    public boolean getSign() { return flag.sign; }
+    public boolean getParity() { return flag.parity; }
+    public boolean getAuxCarry() { return flag.auxCarry; }
+    public boolean getInterrupts() { return interrupts; }
+    public String getRAW() {
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = 0; i < length; i++) {
+            int value = memory.readByte(oldPC + i);
+            sb.append(nString.hexToString8(value).substring(2));
+        }
+
+        return sb.toString();
     }
 
     public String getCurrentInstruction() {
@@ -256,23 +300,23 @@ public class CPU {
         StringBuilder sb = new StringBuilder();
         int instruction = memory.readByte(PC);
         int cycles = 0;
-        int carry = 0;
         int address = 0;
         int data = 0;
+        oldPC = PC;
 
         switch(instruction) {
             case 0x00:
-                // Length 1 byte
                 // Cycles 4, no flags
                 // Do nothing
+                length = 1;
                 sb.append("NOP");
                 cycles = 4;
                 PC++;
                 break;
             case 0x01:
-                // Length 3 byte
                 // Cycles 10, no flags
                 // Load next two bytes into CD
+                length = 3;
                 sb.append("LXI B, ");
                 cycles = 10;
                 register.C = memory.readByte(++PC);
@@ -281,45 +325,43 @@ public class CPU {
                 PC++;
                 break;
             case 0x02:
-                // Length 1 byte
                 // Cycles 7, no flags
                 // Copy register A value into address at BC
+                length = 1;
                 sb.append("STAX B");
                 cycles = 7;
                 memory.writeByte(register.BC(), register.A);
                 PC++;
                 break;
             case 0x03:
-                // Length 1
                 // Cycles 5, no flags
                 // BC++
+                length = 1;
                 sb.append("INX B");
                 cycles = 5;
                 inxB();
                 PC++;
                 break;
             case 0x04:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // B++
+                length = 1;
                 sb.append("INR B");
-                cycles = 5
+                cycles = 5;
+                register.B = inr(register.B);
+                break;
+            case 0x05:
+                // Cycles 5. flags S Z A P
+                // Decrements register R by one.  R=R-1
+                length = 1;
+                sb.append("DCR B");
+                register.B = dcr(register.B);
+                PC++;
+                break;
             case 0x06:
-                // Length 2;
-                //                register.B = inr(register.B);
-                //                PC++;
-                //                break;
-                //            case 0x05:
-                //                // Length 1
-                //                // Cycles 5, flags S Z A P
-                //                // B--
-                //                sb.append("DCR B");
-                //                cycles = 5;
-                //                register.B = dcr(register.B);
-                //                PC++;
-                //                break;
                 // Cycles 7, no flags
                 // Move immediate to register
+                length = 2;
                 sb.append("MVI B, ");
                 cycles = 7;
                 register.B = memory.readByte(++PC);
@@ -327,33 +369,33 @@ public class CPU {
                 PC++;
                 break;
             case 0x07:
-                // Length 1
                 // Cycles 4, flags C
                 // Rotate A left
+                length = 1;
                 sb.append("RLC");
                 cycles = 4;
                 sign8(register.A);
                 register.A = (register.A << 1) | (register.A >> 7); // carry bit 7 back to bit 0
                 PC++;
                 break;
-            case 0x08:
+            case 0x08: // All NOP
             case 0x10:
             case 0x18:
             case 0x20:
             case 0x28:
             case 0x30:
             case 0x38:
-                // Length 1
                 // Cycles 4, no flags
                 // NOP - Do Nothing
+                length = 1;
                 sb.append("*NOP");
                 cycles = 4;
                 PC++;
                 break;
             case 0x09:
-                // Length 1
                 // Cycles 10, flags C
                 // Add register pair to HL (16 bit add)
+                length = 1;
                 sb.append("DAD B");
                 carry16(register.BC() + register.HL());
                 //flag.carry = ((register.BC() + register.HL()) & 0xFFFF0000) > 0; // did the calculation go over 16 bits?
@@ -362,109 +404,111 @@ public class CPU {
                 PC++;
                 break;
             case 0x0a:
-                // Length 1
                 // Cycle 7, no flags
                 // Load indirect through BC or DE
+                length = 1;
                 sb.append("LDAX B");
                 cycles = 7;
                 register.A = memory.readByte(register.BC());
                 PC++;
                 break;
             case 0x0b:
-                // Length 1
                 // Cycles 5, no flags
                 // Decrement register pair
+                length = 1;
                 sb.append("DCX B");
                 cycles = 5;
                 register.BC(register.BC() - 1);
                 PC++;
                 break;
             case 0x0c:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Increment register
+                length = 1;
                 sb.append("INR C");
                 cycles = 5;
                 register.C = inr(register.C);
                 PC++;
                 break;
             case 0x0d:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Decrement register
+                length = 1;
                 sb.append("DCR C");
                 register.C = dcr(register.C);
                 PC++;
                 break;
             case 0x0e:
-                // Length 2
                 // Cycles 7, no flags
                 // Move immediate to register
+                length = 2;
                 sb.append("MVI C, ");
                 register.C = memory.readByte(++PC);
                 sb.append(nString.hexToString8(register.C));
                 PC++;
                 break;
             case 0x0f:
-                // Length 1
                 // Cycles 4, flags C
-                // Rotate A right
+                // Rotate A right through carry
+                length = 1;
                 sb.append("RRC");
                 cycles = 4;
-                flag.carry = (register.A & 1) == 1;
-                register.A = (register.A >>> 1);
-                register.A = register.A | (flag.carry ? 1 : 0);
+                flag.carry = (register.A & 1) == 1; // check if first bit gets cut off
+                register.A = register.A >>> 1;
+                register.A |= flag.carry ? 0x80 : 0; // put first bit back as 7th(last) bit
                 PC++;
                 break;
             case 0x11:
-                // Length 3
                 // Cycles 10, no flags
                 // Load register pair immediate
+                length = 3;
                 sb.append("LXI D, ");
                 cycles = 10;
                 register.E = memory.readByte(++PC);
                 register.D = memory.readByte(++PC);
                 sb.append(nString.hexToString16(register.DE()));
+                System.out.println(register.DE());
                 PC++;
                 break;
             case 0x12:
-                // Length 1
                 // Cycles 7, no flags
                 // Store indirect through BC or DE
+                length = 1;
                 sb.append("STAX D");
                 cycles = 7;
                 memory.writeByte(register.DE(), register.A);
                 PC++;
                 break;
             case 0x13:
-                // Length 1
                 // Cycles 5, no flags
                 // Increment register pair
+                length = 1;
                 sb.append("INX D");
                 cycles = 5;
-                register.DE(register.DE() - 1);
+                register.DE(register.DE() + 1);
                 PC++;
                 break;
             case 0x14:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Increment register
+                length = 1;
                 sb.append("INR D");
+                cycles = 5;
                 register.D = inr(register.D);
                 PC++;
                 break;
             case 0x15:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Decrement register
+                length = 1;
                 sb.append("DCR D");
                 register.D = dcr(register.D);
                 PC++;
                 break;
             case 0x16:
-                // Length 2
                 // Cycles 7, no flags
                 // Move immediate to register
+                length = 2;
                 sb.append("MVI D, ");
                 cycles = 7;
                 register.D = memory.readByte(++PC);
@@ -472,69 +516,69 @@ public class CPU {
                 PC++;
                 break;
             case 0x17:
-                // Length 1
                 // Cycles 4, flags C
                 // Rotate A left through carry
+                length = 1;
                 sb.append("RAL");
                 cycles = 4;
-                // Save original value
-                carry = flag.carry ? 1 : 0;
+                // Save original carry
+                data = flag.carry ? 1 : 0;
                 carry8(register.A);
-                //flag.carry = (register.A & 0x80) > 0;
-                register.A = (register.A << 1) | carry;
+                register.A = (register.A << 1) | data;
                 register.A &= 0xff; // <255
                 PC++;
                 break;
             case 0x19:
-                // Length 1
                 // Cycles 10, flags C
                 // Add register pair to HL (16 bit add)
+                length = 1;
                 sb.append("DAD D");
                 cycles = 10;
-                carry16(register.DE() + register.HL());
-                register.HL(register.DE() + register.HL());
+                data = register.DE() + register.HL();
+                carry16(data);
+                register.HL(data);
                 PC++;
                 break;
             case 0x1a:
-                // Length 1
                 // Cycles 7, no flags
                 // Load indirect through BC or DE
-                sb.append("LDAX D");
+                length = 1;
+                sb.append("LDAX D, [DE]");
                 cycles = 7;
                 register.A = memory.readByte(register.DE());
                 PC++;
                 break;
             case 0x1b:
-                // Length 1
                 // Cycles 5, no flags
                 // Decrement register pair
+                length = 1;
                 sb.append("DCX D");
                 cycles = 5;
                 register.DE(register.DE() - 1);
                 PC++;
                 break;
             case 0x1c:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Increment register
+                length = 1;
                 sb.append("INR E");
                 cycles = 5;
                 register.E = inr(register.E);
                 PC++;
                 break;
             case 0x1d:
-                // Length 1
                 // Cycles 5, S Z A P
                 // Decrement register
+                length = 1;
                 sb.append("DCR E");
                 cycles = 5;
                 register.E = dcr(register.E);
                 PC++;
                 break;
             case 0x1e:
-                // Length 2
                 // Cycles 7, no flags
                 // Move immediate to register
+                length = 2;
                 sb.append("MVI E, ");
                 cycles = 7;
                 register.E = memory.readByte(++PC);
@@ -542,67 +586,70 @@ public class CPU {
                 PC++;
                 break;
             case 0x1f:
-                // Length 1
                 // Cycles 4, flags C
                 // Rotate A right through carry
+                length = 1;
                 sb.append("RAR");
                 cycles = 4;
-                carry = flag.carry ? 0x80 : 0;
+                data = flag.carry ? 0x80 : 0; // carry set?
                 flag.carry = (register.A & 1) > 0;
-                register.A = (register.A >>> 1) | carry;
+                register.A = (register.A >>> 1) | data; // put carry back in at bit 7
                 PC++;
                 break;
             case 0x21:
-                // Length 3
                 // Cycles 10, no flags
                 // Load register pair immediate
+                length = 3;
                 sb.append("LXI H, ");
                 cycles = 10;
-                register.L = memory.readByte(++PC);
-                register.H = memory.readByte(++PC);
+                register.HL(memory.readWord(++PC));
+                PC++;
+                //register.L = memory.readByte(++PC);
+                //register.H = memory.readByte(++PC);
                 sb.append(nString.hexToString16(register.HL()));
                 PC++;
                 break;
             case 0x22:
-                // Length 3
                 // Cycles 16
                 // Store H:L to memory
+                length = 3;
                 sb.append("SHLD ");
                 cycles = 16;
                 address = memory.readWord(++PC);
                 PC++;
                 sb.append(nString.hexToString16(address));
-                memory.writeWord(address, register.L, register.H);
+                //memory.writeWord(address, register.L, register.H);
+                memory.writeWord(address, register.HL());
                 PC++;
                 break;
             case 0x23:
-                // Length 1
                 // Cycles 5, no flags
                 // Increment register pair
+                length = 1;
                 sb.append("INX H");
                 register.HL(register.HL() + 1);
                 PC++;
                 break;
             case 0x24:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Increment register
+                length = 1;
                 sb.append("INR H");
                 register.H = inr(register.H);
                 PC++;
                 break;
             case 0x25:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Decrement register
+                length = 1;
                 sb.append("DCR H");
                 register.H = dcr(register.H);
                 PC++;
                 break;
             case 0x26:
-                // Length 2
                 // Cycles 7, no flags
                 // Move immediate to register
+                length = 2;
                 sb.append("MVI H, ");
                 data = memory.readByte(++PC);
                 register.H = data;
@@ -610,16 +657,16 @@ public class CPU {
                 PC++;
                 break;
             case 0x27:
-                // Length 1
                 // Cycles 4, S Z A C P
                 // Decimal Adjust accumulator
+                length = 1;
                 sb.append("DAA - Not implemented");
                 PC++;
                 break;
             case 0x29:
-                // Length 1
                 // Cycles 10, flags C
                 // Add register pair to HL (16 bit add)
+                length = 1;
                 sb.append("DAD H");
                 cycles = 10;
                 data = register.HL() + register.HL();
@@ -628,21 +675,21 @@ public class CPU {
                 PC++;
                 break;
             case 0x2a:
-                // Length 3
                 // Cycles 16, no flags
                 // Load H:L from memory
+                length = 3;
                 sb.append("LHLD ");
                 cycles = 16;
                 address = memory.readWord(++PC);
-                sb.append("[").append(nString.hexToString16(address)).append("]");
+                sb.append(nString.hexToString16(address));
                 register.L = memory.readByte(address);
                 register.H = memory.readByte(address + 1);
                 PC += 2;
                 break;
             case 0x2b:
-                // Length 1
                 // Cycles 5, no flags
                 // Decrement register pair
+                length = 1;
                 sb.append("DCX H");
                 cycles = 5;
                 register.HL(register.HL() - 1);
@@ -652,23 +699,24 @@ public class CPU {
                 // Length 1
                 // Cycles 5, flags S Z A P
                 // Increment register
+                length = 1;
                 sb.append("INR L");
                 register.L = inr(register.L);
                 PC++;
                 break;
             case 0x2d:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Decrement register
+                length = 1;
                 sb.append("DCR L");
                 cycles = 5;
                 register.L = dcr(register.L);
                 PC++;
                 break;
             case 0x2e:
-                // Length 2
                 // Cycles 7
                 // Move immediate to register
+                length = 2;
                 sb.append("MVI L, ");
                 cycles = 7;
                 register.L = memory.readByte(++PC);
@@ -676,18 +724,18 @@ public class CPU {
                 PC++;
                 break;
             case 0x2f:
-                // Length 1
                 // Cycles 4, no flags
                 // Compliment A
+                length = 1;
                 sb.append("CMA");
                 cycles = 4;
                 register.A = ~register.A & 0xff; // <256;
                 PC++;
                 break;
             case 0x31:
-                // Length 3
                 // Cycles 10, no flags
                 // Load register pair immediate
+                length = 3;
                 sb.append("LXI SP, ");
                 cycles = 10;
                 SP = memory.readWord(++PC);
@@ -695,9 +743,9 @@ public class CPU {
                 PC += 2;
                 break;
             case 0x32:
-                // Length 3
                 // Cycles 13, no flags
                 // Store A to memory
+                length = 3;
                 sb.append("STA ");
                 cycles = 13;
                 address = memory.readWord(++PC);
@@ -706,18 +754,18 @@ public class CPU {
                 PC += 2;
                 break;
             case 0x33:
-                // Length 1
                 // Cycles 5, no flags
                 // Increment register
+                length = 1;
                 sb.append("INX SP");
                 ++SP;
-                SP &= 0xffff; // <65536 - cut off upper bits
+                SP &= 0xffff; // <65536 - cut off upper bits because using 32 bit int
                 PC++;
                 break;
             case 0x34:
-                // Length 1
                 // Cycles 10, flags S Z A P
                 // Increment memory INR M
+                length = 1;
                 sb.append("INR ");
                 sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = inr(register.HL());
@@ -725,9 +773,9 @@ public class CPU {
                 PC++;
                 break;
             case 0x35:
-                // Length 1
                 // Cycles 10, flags S Z A P
                 // Decrement memory DCR M
+                length = 1;
                 sb.append("DCR ");
                 cycles = 10;
                 address = register.HL();
@@ -738,9 +786,9 @@ public class CPU {
                 PC++;
                 break;
             case 0x36:
-                // Length 2
                 // Cycles 10, no flags
                 // Move immediate to memory
+                length = 2;
                 sb.append("MVI ");
                 address = register.HL();
                 sb.append(nString.hexToString16(address)).append(", ");
@@ -750,30 +798,29 @@ public class CPU {
                 PC += 2;
                 break;
             case 0x37:
-                // Length 1
                 // Cycles 4, flags C
                 // Set Carry flag
+                length = 1;
                 sb.append("STC");
                 cycles = 4;
                 flag.carry = true;
                 PC++;
                 break;
             case 0x39:
-                // Length 1
                 // Cycles 10, flags C
                 // Add register pair to HL (16 bit add)
+                length = 1;
                 sb.append("DAD SP");
                 data = SP + register.HL();
                 carry16(data);
-                //flag.carry = ((SP + register.HL()) & 0xFFFF0000) > 0; // did the calculation go over 16 bits?
                 register.HL(data);
                 cycles = 10;
                 PC++;
                 break;
             case 0x3a:
-                // Length 3
                 // Cycles 13, no flags
                 // Load A from memory
+                length = 3;
                 sb.append("LDA ");
                 cycles = 13;
                 address = memory.readWord(++PC);
@@ -782,9 +829,9 @@ public class CPU {
                 PC += 2;
                 break;
             case 0x3b:
-                // Length 1
                 // Cycles 5, no flags
                 // Decrement register pair
+                length = 1;
                 sb.append("DCX SP");
                 cycles = 5;
                 --SP;
@@ -792,1217 +839,1234 @@ public class CPU {
                 PC++;
                 break;
             case 0x3c:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Increment register A
+                length = 1;
                 sb.append("INR A");
                 cycles = 5;
                 register.A = inr(register.A);
                 PC++;
                 break;
             case 0x3d:
-                // Length 1
                 // Cycles 5, flags S Z A P
                 // Decrement register
+                length = 1;
                 sb.append("DCR A");
                 cycles = 5;
                 register.A = dcr(register.A);
                 PC++;
                 break;
             case 0x3e:
-                // Length 2
                 // Cycles 7, no flags
                 // Move immediate to register
+                length = 2;
                 sb.append("MVI A, ");
                 register.A = memory.readByte(++PC);
+                sb.append(nString.hexToString8(register.A));
                 PC++;
                 break;
             case 0x3f:
-                // Length 1
                 // Cycles 4, flags C
                 // Compliment Carry flag
+                length = 1;
                 sb.append("CMC");
                 cycles = 4;
                 flag.carry = !flag.carry;
                 PC++;
                 break;
             case 0x40:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV B, B");
-                //register.B = register.B;
                 cycles = 5;
                 PC++;
                 break;
             case 0x41:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV B, C");
                 cycles = 5;
                 register.B = register.C;
                 PC++;
                 break;
             case 0x42:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV B, D");
                 cycles = 5;
                 register.B = register.D;
                 PC++;
                 break;
             case 0x43:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV B, E");
                 cycles = 5;
                 register.B = register.E;
                 PC++;
                 break;
             case 0x44:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV B, H");
                 register.B = register.H;
                 PC++;
                 break;
             case 0x45:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV B, L");
                 cycles = 5;
                 register.B = register.L;
                 PC++;
                 break;
             case 0x46:
-                // Length 1
                 // Cycles 7, no flags
                 // Move memory to register
-                sb.append("MOV B, M");
+                length = 1;
+                sb.append("MOV B, ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 register.B = memory.readByte(register.HL());
                 PC++;
                 break;
             case 0x47:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV B, A");
                 cycles = 5;
                 register.B = register.A;
                 PC++;
                 break;
             case 0x48:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV C, B");
                 cycles = 5;
                 register.C = register.B;
                 PC++;
                 break;
             case 0x49:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV C, C");
                 cycles = 5;
-                //regsiter.C = register.C;
                 PC++;
                 break;
             case 0x4a:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV C, D");
                 cycles = 5;
                 register.C = register.D;
                 PC++;
                 break;
             case 0x4b:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV C, E");
                 cycles = 5;
                 register.C = register.E;
                 PC++;
                 break;
             case 0x4c:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV C, H");
                 cycles = 5;
                 register.C = register.H;
                 PC++;
                 break;
             case 0x4d:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV C, L");
                 cycles = 5;
                 register.C = register.L;
                 PC++;
                 break;
             case 0x4e:
-                // Length 1
                 // Cycles 7, no flags
                 // Move register to register
-                sb.append("MOV C, M");
+                length = 1;
+                sb.append("MOV C, ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 register.C = memory.readByte(register.HL());
                 PC++;
                 break;
             case 0x4f:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV C, A");
                 cycles = 5;
                 register.C = register.A;
                 PC++;
                 break;
             case 0x50:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV D, B");
                 cycles = 5;
                 register.D = register.B;
                 PC++;
                 break;
             case 0x51:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV D, C");
                 cycles = 5;
                 register.D = register.C;
                 PC++;
                 break;
             case 0x52:
-                // Length 1
                 // Cycles 5, no flags
                 // move register to register
+                length = 1;
                 sb.append("MOV D, D");
                 cycles = 5;
                 PC++;
                 break;
             case 0x53:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV D, E");
                 cycles = 5;
                 register.D = register.E;
                 PC++;
                 break;
             case 0x54:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV D, H");
                 cycles = 5;
                 register.D = register.H;
                 PC++;
                 break;
             case 0x55:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV D, L");
                 cycles = 5;
                 register.D = register.L;
                 PC++;
                 break;
             case 0x56:
-                // Length 1
                 // Cycles 7, no flags
                 // Move memory to register
-                sb.append("MOV D, M");
+                length = 1;
+                sb.append("MOV D, ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 register.D = memory.readByte(register.HL());
                 PC++;
                 break;
             case 0x57:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV D, A");
                 cycles = 5;
                 register.D = register.A;
                 PC++;
                 break;
             case 0x58:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV E, B");
                 cycles = 5;
                 register.E = register.B;
                 PC++;
                 break;
             case 0x59:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV E, C");
                 cycles = 5;
                 register.E = register.C;
                 PC++;
                 break;
             case 0x5a:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV E, D");
                 cycles = 5;
                 register.E = register.D;
                 PC++;
                 break;
             case 0x5b:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV E, E");
                 cycles = 5;
-                //register.E = register.E
                 PC++;
                 break;
             case 0x5c:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV E, H");
                 cycles = 5;
                 register.E = register.H;
                 PC++;
                 break;
             case 0x5d:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV E, L");
                 cycles = 5;
                 register.E = register.L;
                 PC++;
                 break;
             case 0x5e:
-                // Length 1
                 // Cycles 7, no flags
                 // Move memory to register
-                sb.append("MOV E, M");
+                length = 1;
+                sb.append("MOV E, ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 register.E = memory.readByte(register.HL());
                 PC++;
                 break;
             case 0x5f:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV E, A");
                 cycles = 5;
                 register.E = register.A;
                 PC++;
                 break;
             case 0x60:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV H, B");
                 cycles = 5;
                 register.H = register.B;
                 PC++;
                 break;
             case 0x61:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV H, C");
                 cycles = 5;
                 register.H = register.C;
                 PC++;
                 break;
             case 0x62:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV H, D");
                 cycles = 5;
                 register.H = register.D;
                 PC++;
                 break;
             case 0x63:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV H, E");
                 cycles = 5;
                 register.H = register.E;
                 PC++;
                 break;
             case 0x64:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV H, H");
                 cycles = 5;
-                //register.H = register.H
                 PC++;
                 break;
             case 0x65:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV H, L");
                 cycles = 5;
                 register.H = register.L;
                 PC++;
                 break;
             case 0x66:
-                // Length 1
                 // Cycles 7, no flags
                 // Move memory to register
-                sb.append("MOV H, M");
+                length = 1;
+                sb.append("MOV H, ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 register.H = memory.readByte(register.HL());
                 PC++;
                 break;
             case 0x67:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV H, A");
                 cycles = 5;
                 register.H = register.A;
                 PC++;
                 break;
             case 0x68:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV L, B");
                 cycles = 5;
                 register.L = register.B;
                 PC++;
                 break;
             case 0x69:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV L, C");
                 cycles = 5;
                 register.L = register.C;
                 PC++;
                 break;
             case 0x6a:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV L, D");
                 cycles = 5;
                 register.L = register.D;
                 PC++;
                 break;
             case 0x6b:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV L, E");
                 cycles = 5;
                 register.L = register.E;
                 PC++;
                 break;
             case 0x6c:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV L, H");
                 cycles = 5;
                 register.L = register.H;
                 PC++;
                 break;
             case 0x6d:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV L, L");
                 cycles = 5;
-                //register.L = register.L;
                 PC++;
                 break;
             case 0x6e:
-                // Length 1
                 // Cycles 7, no flags
                 // Move memory to register
-                sb.append("MOV L, M");
+                length = 1;
+                sb.append("MOV L, ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 register.L = memory.readByte(register.HL());
                 PC++;
                 break;
             case 0x6f:
-                // Length 1
                 // Cycles 5, no flags
                 // Move register to register
+                length = 1;
                 sb.append("MOV L, A");
                 cycles = 5;
                 register.L = register.A;
                 PC++;
                 break;
             case 0x70:
-                // Length 1
                 // Cycles 7, no flags
-                // Move register to memory
-                sb.append("MOV M, B");
+                // Move register B to memory
+                length = 1;
+                sb.append("MOV ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("], B");
                 memory.writeByte(register.HL(), register.B);
                 PC++;
                 break;
             case 0x71:
-                // Length 1
                 // Cycles 7, no flags
-                // Move register to memory
-                sb.append("MOV M, C");
+                // Move register C to memory
+                length = 1;
+                sb.append("MOV ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("], C");
                 memory.writeByte(register.HL(), register.C);
                 PC++;
                 break;
             case 0x72:
-                // Length 1
                 // Cycles 7, no flags
-                // Move register to memory
-                sb.append("MOV M, D");
+                // Move register D to memory
+                length = 1;
+                sb.append("MOV ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("], D");
                 memory.writeByte(register.HL(), register.D);
                 PC++;
                 break;
             case 0x73:
-                // Length 1
                 // Cycles 7, no flags
-                // Move register to memory
-                sb.append("MOV M, E");
+                // Move register E to memory
+                length = 1;
+                sb.append("MOV ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("], E");
                 memory.writeByte(register.HL(), register.E);
                 PC++;
                 break;
             case 0x74:
-                // Length 1
                 // Cycles 7, no flags
-                // Move register to memory
-                sb.append("MOV M, H");
+                // Move register H to memory
+                length = 1;
+                sb.append("MOV ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("], H");
                 memory.writeByte(register.HL(), register.H);
                 PC++;
                 break;
             case 0x75:
-                // Length 1
                 // Cycles 7, no flags
-                // Move register to memory
-                sb.append("MOV M, L");
+                // Move register L to memory
+                length = 1;
+                sb.append("MOV ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("], L");
                 memory.writeByte(register.HL(), register.L);
                 PC++;
                 break;
             case 0x76:
-                // Length 1
                 // Cycles 7, no flags
                 // Halt processor
+                length = 1;
                 sb.append("HLT");
                 cycles = 7;
                 halt = true;
                 PC++;
                 break;
             case 0x77:
-                // Length 1
                 // Cycles 7, no flags
-                // Move register to memory
-                sb.append("MOV M, A");
+                // Move register A to memory
+                length = 1;
+                sb.append("MOV ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("], A");
                 memory.writeByte(register.HL(), register.A);
                 PC++;
                 break;
             case 0x78:
-                // Length 1
                 // Cycles 5, no flags
-                // Move register to register
+                // Move register B to register A
+                length = 1;
                 sb.append("MOV A, B");
                 cycles = 5;
                 register.A = register.B;
                 PC++;
                 break;
             case 0x79:
-                // Length 1
                 // Cycles 5, no flags
-                // Move register to register
+                // Move register C to register A
+                length = 1;
                 sb.append("MOV A, C");
                 cycles = 5;
                 register.A = register.C;
                 PC++;
                 break;
             case 0x7a:
-                // Length 1
                 // Cycles 5, no flags
-                // Move register to register
+                // Move register D to register A
+                length = 1;
                 sb.append("MOV A, D");
                 cycles = 5;
                 register.A = register.D;
                 PC++;
                 break;
             case 0x7b:
-                // Length 1
                 // Cycles 5, no flags
-                // Move register to register
+                // Move register E to register A
+                length = 1;
                 sb.append("MOV A, E");
                 cycles = 5;
                 register.A = register.E;
                 PC++;
                 break;
             case 0x7c:
-                // Length 1
                 // Cycles 5, no flags
-                // Move register to register
+                // Move register H to register A
+                length = 1;
                 sb.append("MOV A, H");
                 cycles = 5;
                 register.A = register.H;
                 PC++;
                 break;
             case 0x7d:
-                // Length 1
                 // Cycles 5, no flags
-                // Move register to register
+                // Move register L to register A
+                length = 1;
                 sb.append("MOV A, L");
                 cycles = 5;
                 register.A = register.L;
                 PC++;
                 break;
             case 0x7e:
-                // Length 1
                 // Cycles 7, no flags
-                // Move memory to register
-                sb.append("MOV A, M");
+                // Move memory to register A
+                length = 1;
+                sb.append("MOV A, ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 register.A = memory.readByte(register.HL());
                 PC++;
                 break;
             case 0x7f:
-                // Length 1
                 // Cycles 5, no flags
-                // Move register to register
+                // Move register A to register A
+                length = 1;
                 sb.append("MOV A, A");
                 cycles = 5;
-                //register.A = register.A;
                 PC++;
                 break;
             case 0x80:
-                // Length 1
                 // Cycles 4, flags S Z A P C
-                // Add register to A
+                // Add register B to A
+                length = 1;
                 sb.append("ADD B");
                 cycles = 4;
                 add(register.B);
                 PC++;
                 break;
             case 0x81:
-                // Length 1
                 // Cycles 4, flags S Z A P C
-                // Add register to A
+                // Add register C to A
+                length = 1;
                 sb.append("ADD C");
                 cycles = 4;
                 add(register.C);
                 PC++;
                 break;
             case 0x82:
-                // Length 1
                 // Cycles 4, flags S Z A P C
-                // Add register to A
+                // Add register D to A
+                length = 1;
                 sb.append("ADD D");
                 cycles = 4;
                 add(register.D);
                 PC++;
                 break;
             case 0x83:
-                // Length 1
                 // Cycles 4, flags S Z A P C
-                // Add register to A
+                // Add register E to A
+                length = 1;
                 sb.append("ADD E");
                 cycles = 4;
                 add(register.E);
                 PC++;
                 break;
             case 0x84:
-                // Length 1
                 // Cycles 4, flags S Z A P C
-                // Add register to A
+                // Add register H to A
+                length = 1;
                 sb.append("ADD H");
                 cycles = 4;
                 add(register.H);
                 PC++;
                 break;
             case 0x85:
-                // Length 1
                 // Cycles 4, flags S Z A P C
-                // Add register to A
+                // Add register L to A
+                length = 1;
                 sb.append("ADD L");
                 cycles = 4;
                 add(register.L);
                 PC++;
                 break;
             case 0x86:
-                // Length 1
                 // Cycles 7, flags S Z A P C
-                // Add memory to A
-                sb.append("ADD M");
+                // Add memory M to A
+                length = 1;
+                sb.append("ADD ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = memory.readByte(register.HL());
                 add(data);
                 PC++;
                 break;
             case 0x87:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // Add A to A
+                length = 1;
                 sb.append("ADD A");
                 cycles = 4;
                 add(register.A);
                 PC++;
                 break;
             case 0x88:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // Add register to A with carry
+                length = 1;
                 sb.append("ADC B");
                 cycles = 4;
                 adc(register.B);
                 PC++;
                 break;
             case 0x89:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // Add register to A with carry
+                length = 1;
                 sb.append("ADC C");
                 cycles = 4;
                 adc(register.C);
                 PC++;
                 break;
             case 0x8a:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // Add register to A with carry
+                length = 1;
                 sb.append("ADC D");
                 cycles = 4;
                 adc(register.D);
                 PC++;
                 break;
             case 0x8b:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // Add register to A with carry
+                length = 1;
                 sb.append("ADC E");
                 cycles = 4;
                 adc(register.E);
                 PC++;
                 break;
             case 0x8c:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // Add register to A with carry
+                length = 1;
                 sb.append("ADC H");
                 cycles = 4;
                 adc(register.H);
                 PC++;
                 break;
             case 0x8d:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // Add register to A with carry
+                length = 1;
                 sb.append("ADC L");
                 cycles = 4;
                 adc(register.L);
                 PC++;
                 break;
             case 0x8e:
-                // Length 1
                 // Cycles 7, flags S Z A P C
                 // Add memory to A with carry
-                sb.append("ADC M");
+                length = 1;
+                sb.append("ADC ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = memory.readByte(register.HL());
                 adc(data);
                 PC++;
                 break;
             case 0x8f:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // Add register to A with carry
+                length = 1;
                 sb.append("ADC A");
                 cycles = 4;
                 adc(register.A);
                 PC++;
                 break;
             case 0x90:
-                // Length 1
                 // Cycles 4, S Z A P
                 // Subtract B from A
+                length = 1;
                 sb.append("SUB B");
                 cycles = 4;
                 sub(register.B);
                 PC++;
                 break;
             case 0x91:
-                // Length 1
                 // Cycles 4, S Z A P
                 // Subtract C from A
+                length = 1;
                 sb.append("SUB C");
                 cycles = 4;
                 sub(register.C);
                 PC++;
                 break;
             case 0x92:
-                // Length 1
                 // Cycles 4, S Z A P
                 // Subtract D from A
+                length = 1;
                 sb.append("SUB D");
                 cycles = 4;
                 sub(register.D);
                 PC++;
                 break;
             case 0x93:
-                // Length 1
                 // Cycles 4, S Z A P
                 // Subtract E from A
+                length = 1;
                 sb.append("SUB E");
                 cycles = 4;
                 sub(register.E);
                 PC++;
                 break;
             case 0x94:
-                // Length 1
                 // Cycles 4, S Z A P
                 // Subtract H from A
+                length = 1;
                 sb.append("SUB H");
                 cycles = 4;
                 sub(register.H);
                 PC++;
                 break;
             case 0x95:
-                // Length 1
                 // Cycles 4, S Z A P
                 // Subtract L from A
+                length = 1;
                 sb.append("SUB L");
                 cycles = 4;
                 sub(register.L);
                 PC++;
                 break;
             case 0x96:
-                // Length 1
                 // Cycles 7, S Z A P
                 // Subtract M from A
-                sb.append("SUB M");
+                length = 1;
+                sb.append("SUB ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = memory.readByte(register.HL());
                 sub(data);
                 PC++;
                 break;
             case 0x97:
-                // Length 1
                 // Cycles 4, S Z A P
                 // Subtract A from A
+                length = 1;
                 sb.append("SUB A");
                 cycles = 4;
                 sub(register.A);
                 PC++;
                 break;
             case 0x98:
-                // Length 1
                 // Cycles 4, flags S Z A C P
                 // Subtract register from A with borrow
+                length = 1;
                 sb.append("SBB B");
                 cycles = 4;
                 sbb(register.B);
                 PC++;
                 break;
             case 0x99:
-                // Length 1
                 // Cycles 4, flags S Z A C P
                 // Subtract register from A with borrow
+                length = 1;
                 sb.append("SBB C");
                 cycles = 4;
                 sbb(register.C);
                 PC++;
                 break;
             case 0x9a:
-                // Length 1
                 // Cycles 4, flags S Z A C P
                 // Subtract register from A with borrow
+                length = 1;
                 sb.append("SBB D");
                 cycles = 4;
                 sbb(register.D);
                 PC++;
                 break;
             case 0x9b:
-                // Length 1
                 // Cycles 4, flags S Z A C P
                 // Subtract register from A with borrow
+                length = 1;
                 sb.append("SBB E");
                 cycles = 4;
                 sbb(register.E);
                 PC++;
                 break;
             case 0x9c:
-                // Length 1
                 // Cycles 4, flags S Z A C P
                 // Subtract register from A with borrow
+                length = 1;
                 sb.append("SBB H");
                 cycles = 4;
                 sbb(register.H);
                 PC++;
                 break;
             case 0x9d:
-                // Length 1
                 // Cycles 4, flags S Z A C P
                 // Subtract register from A with borrow
+                length = 1;
                 sb.append("SBB L");
                 cycles = 4;
                 sbb(register.L);
                 PC++;
                 break;
             case 0x9e:
-                // Length 1
                 // Cycles 7, flags S Z A C P
                 // Subtract register from A with borrow
-                sb.append("SBB M");
+                length = 1;
+                sb.append("SBB ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = memory.readByte(register.HL());
                 sbb(data);
                 PC++;
                 break;
             case 0x9f:
-                // Length 1
                 // Cycles 4, flags S Z A C P
                 // Subtract register from A with borrow
+                length = 1;
                 sb.append("SBB A");
                 cycles = 4;
                 sbb(register.A);
                 PC++;
                 break;
             case 0xa0:
-                // Length 1
                 // Cycle 4, flags S Z A C P
                 // AND register with A
+                length = 1;
                 sb.append("ANA B");
                 cycles = 4;
                 ana(register.B);
                 PC++;
                 break;
             case 0xa1:
-                // Length 1
                 // Cycle 4, flags S Z A C P
                 // AND register with A
+                length = 1;
                 sb.append("ANA C");
                 cycles = 4;
                 ana(register.C);
                 PC++;
                 break;
             case 0xa2:
-                // Length 1
                 // Cycle 4, flags S Z A C P
                 // AND register with A
+                length = 1;
                 sb.append("ANA D");
                 cycles = 4;
                 ana(register.D);
                 PC++;
                 break;
             case 0xa3:
-                // Length 1
                 // Cycle 4, flags S Z A C P
                 // AND register with A
+                length = 1;
                 sb.append("ANA E");
                 cycles = 4;
                 ana(register.E);
                 PC++;
                 break;
             case 0xa4:
-                // Length 1
                 // Cycle 4, flags S Z A C P
                 // AND register with A
+                length = 1;
                 sb.append("ANA H");
                 cycles = 4;
                 ana(register.H);
                 PC++;
                 break;
             case 0xa5:
-                // Length 1
                 // Cycle 4, flags S Z A C P
                 // AND register with A
+                length = 1;
                 sb.append("ANA L");
                 cycles = 4;
                 ana(register.L);
                 PC++;
                 break;
             case 0xa6:
-                // Length 1
                 // Cycle 7, flags S Z A C P
-                // AND register with A
-                sb.append("ANA M");
+                // AND memory with A
+                length = 1;
+                sb.append("ANA ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = memory.readByte(register.HL());
                 ana(data);
                 PC++;
                 break;
             case 0xa7:
-                // Length 1
                 // Cycle 4, flags S Z A P C
                 // AND register with A
+                length = 1;
                 sb.append("ANA A");
                 cycles = 4;
                 ana(register.A);
                 PC++;
                 break;
             case 0xa8:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // ExclusiveOR register with A
+                length = 1;
                 sb.append("XRA B");
                 cycles = 4;
                 xra(register.B);
                 PC++;
                 break;
             case 0xa9:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // ExclusiveOR register with A
+                length = 1;
                 sb.append("XRA C");
                 cycles = 4;
                 xra(register.C);
                 PC++;
                 break;
             case 0xaa:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // ExclusiveOR register with A
+                length = 1;
                 sb.append("XRA D");
                 cycles = 4;
                 xra(register.D);
                 PC++;
                 break;
             case 0xab:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // ExclusiveOR register with A
+                length = 1;
                 sb.append("XRA E");
                 cycles = 4;
                 xra(register.E);
                 PC++;
                 break;
             case 0xac:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // ExclusiveOR register with A
+                length = 1;
                 sb.append("XRA H");
                 cycles = 4;
                 xra(register.H);
                 PC++;
                 break;
             case 0xad:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // ExclusiveOR register with A
+                length = 1;
                 sb.append("XRA L");
                 cycles = 4;
                 xra(register.L);
                 PC++;
                 break;
             case 0xae:
-                // Length 1
                 // Cycles 7, flags S Z A P C
                 // ExclusiveOR memory with A
-                sb.append("XRA M");
+                length = 1;
+                sb.append("XRA ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = memory.readByte(register.HL());
                 xra(data);
                 PC++;
                 break;
             case 0xaf:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // ExclusiveOR register with A
+                length = 1;
                 sb.append("XRA A");
                 cycles = 4;
                 xra(register.A);
                 PC++;
                 break;
             case 0xb0:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // OR  register with A
+                length = 1;
                 sb.append("ORA B");
                 cycles = 4;
                 ora(register.B);
                 PC++;
                 break;
             case 0xb1:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // OR  register with A
+                length = 1;
                 sb.append("ORA C");
                 cycles = 4;
                 ora(register.C);
                 PC++;
                 break;
             case 0xb2:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // OR  register with A
+                length = 1;
                 sb.append("ORA D");
                 cycles = 4;
                 ora(register.D);
                 PC++;
                 break;
             case 0xb3:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // OR  register with A
+                length = 1;
                 sb.append("ORA E");
                 cycles = 4;
                 ora(register.E);
                 PC++;
                 break;
             case 0xb4:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // OR  register with A
+                length = 1;
                 sb.append("ORA H");
                 cycles = 4;
                 ora(register.H);
                 PC++;
                 break;
             case 0xb5:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // OR  register with A
+                length = 1;
                 sb.append("ORA L");
                 cycles = 4;
                 ora(register.L);
                 PC++;
                 break;
             case 0xb6:
-                // Length 1
                 // Cycles 7, flags S Z A P C
-                // OR  register with A
-                sb.append("ORA M");
+                // OR  memory with A
+                length = 1;
+                sb.append("ORA ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = memory.readByte(register.HL());
                 ora(data);
                 PC++;
                 break;
             case 0xb7:
-                // Length 1
                 // Cycles 4, flags S Z A P C
                 // OR  register with A
+                length = 1;
                 sb.append("ORA A");
                 cycles = 4;
                 ora(register.A);
                 PC++;
                 break;
             case 0xb8:
-                // Length 1
                 // Cycles 4, S C Z A P C
                 // Compare register with A
+                length = 1;
                 sb.append("CMP B");
                 cycles = 4;
                 cmp(register.B);
                 PC++;
                 break;
             case 0xb9:
-                // Length 1
                 // Cycles 4, S C Z A P C
                 // Compare register with A
+                length = 1;
                 sb.append("CMP C");
                 cycles = 4;
                 cmp(register.C);
                 PC++;
                 break;
             case 0xba:
-                // Length 1
                 // Cycles 4, S C Z A P C
                 // Compare register with A
+                length = 1;
                 sb.append("CMP D");
                 cycles = 4;
                 cmp(register.D);
                 PC++;
                 break;
             case 0xbb:
-                // Length 1
                 // Cycles 4, S C Z A P C
                 // Compare register with A
+                length = 1;
                 sb.append("CMP E");
                 cycles = 4;
                 cmp(register.E);
                 PC++;
                 break;
             case 0xbc:
-                // Length 1
                 // Cycles 4, S C Z A P C
                 // Compare register with A
+                length = 1;
                 sb.append("CMP H");
                 cycles = 4;
                 cmp(register.H);
                 PC++;
                 break;
             case 0xbd:
-                // Length 1
                 // Cycles 4, S C Z A P C
                 // Compare register with A
+                length = 1;
                 sb.append("CMP L");
                 cycles = 4;
                 cmp(register.L);
                 PC++;
                 break;
             case 0xbe:
-                // Length 1
                 // Cycles 7, S C Z A P C
                 // Compare memory with A
-                sb.append("CMP M");
+                length = 1;
+                sb.append("CMP ");
                 cycles = 7;
+                sb.append("[").append(nString.hexToString16(register.HL())).append("]");
                 data = memory.readByte(register.HL());
                 cmp(data);
                 PC++;
                 break;
             case 0xbf:
-                // Length 1
                 // Cycles 4, S C Z A P C
                 // Compare register with A
+                length = 1;
                 sb.append("CMP A");
                 cycles = 4;
                 cmp(register.A);
                 PC++;
                 break;
             case 0xc0:
-                // Length 1
                 // Cycles 11/5, no flags
                 // Return if not zero
                 // Conditional return from subroutine
+                length = 1;
                 sb.append("RNZ");
                 if(!flag.zero) {
-                    PC = memory.readWord(++PC);
+                    PC = memory.readWord(SP);
                     SP += 2;
                     cycles = 11;
                 } else {
                     cycles = 5;
+                    PC++;
                 }
-                PC++;
                 break;
             case 0xc1:
-                // Length 1
                 // Cycles 10, no flags
                 // POP stack into B
+                length = 1;
                 sb.append("POP B");
                 cycles = 10;
                 register.C = memory.readByte(SP++);
@@ -2010,9 +2074,9 @@ public class CPU {
                 PC++;
                 break;
             case 0xc2:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump of NOT zero
+                length = 3;
                 sb.append("JNZ ");
                 cycles = 10;
                 address = memory.readWord(PC + 1);
@@ -2024,24 +2088,27 @@ public class CPU {
                 }
                 break;
             case 0xc3:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump to address
+                length = 3;
                 sb.append("JMP ");
                 cycles = 10;
                 PC = memory.readWord(++PC);
                 sb.append(nString.hexToString16(PC));
                 break;
             case 0xc4:
-                // Length 3
                 // Cycles 17/11, no flags
                 // Call on NOT zero
+                length = 3;
                 sb.append("CNZ ");
                 address = memory.readWord(++PC);
+                address = memory.readWord(address);
+                sb.append(nString.hexToString16(address));
                 if(!flag.zero) {
                     SP -= 2;
-                    memory.writeWord(SP, address);
-                    PC = memory.readWord(address);
+                    // store return instruction on stack
+                    memory.writeWord(SP, PC + 2);
+                    PC = address;
                     cycles = 17;
                 } else {
                     PC += 2;
@@ -2049,9 +2116,9 @@ public class CPU {
                 }
                 break;
             case 0xc5:
-                // Length 1
                 // Cycle 11, no flags
                 // Push register pair BC onto stack
+                length = 1;
                 sb.append("PUSH B");
                 // it's backwards because of -- vs ++
                 memory.writeByte(--SP, register.B);
@@ -2059,29 +2126,29 @@ public class CPU {
                 PC++;
                 break;
             case 0xc6:
-                // Length 2
                 // Cycles 7, flags S Z A P C
                 // Add immediate to A
+                length = 2;
                 sb.append("ADI ");
                 cycles = 7;
                 data = memory.readByte(++PC);
-                sb.append(nString.hexToString16(data));
+                sb.append(nString.hexToString8(data));
                 add(data);
                 PC += 2;
                 break;
             case 0xc7:
-                // Length 1
                 // Cycles 11, no flags
                 // Push PC onto stack
+                length = 1;
                 sb.append("RST 0");
                 SP -= 2;
                 memory.writeWord(SP, PC);
                 PC++;
                 break;
             case 0xc8:
-                // Length 1
                 // Cycles 11/5, no flags
                 // Return if zero
+                length = 1;
                 sb.append("RZ");
                 if(flag.zero) {
                     PC = memory.readWord(SP);
@@ -2093,73 +2160,72 @@ public class CPU {
                 }
                 break;
             case 0xc9:
-                // Length 1
                 // Cycles 10, no flags
                 // Return
+                length = 1;
                 sb.append("RET");
                 cycles = 10;
                 PC = memory.readWord(SP);
                 SP += 2;
                 break;
             case 0xca:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump if zero
+                length = 3;
                 sb.append("JZ ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                cycles = 10;
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(flag.zero) {
-                    PC = data;
-                    cycles = 10;
+                    PC = address;
                 } else {
-                    cycles = 3; // questionable
                     PC += 2;
                 }
                 break;
             case 0xcb:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump
+                length = 3;
                 sb.append("*JMP ");
                 cycles = 10;
                 PC = memory.readWord(++PC);
                 sb.append(nString.hexToString16(PC));
                 break;
             case 0xcc:
-                // Length 3
                 // Cycles 17/11
                 // Call if zero
+                length = 3;
                 sb.append("CZ ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(flag.zero) {
                     cycles = 17;
                     SP -= 2;
                     // write return address to stack
                     memory.writeWord(SP, PC + 2);
                     // Get the pointer and put it in PC
-                    PC = memory.readWord(data);
+                    PC = address;
                 } else {
                     cycles = 11;
                     PC += 2;
                 }
                 break;
             case 0xcd:
-                // Length 3
                 // Cycles 17, no flags
                 // Call subroutine
+                length = 3;
                 sb.append("CALL ");
                 cycles = 17;
                 // Write return address to stack
                 SP -= 2;
-                memory.writeWord(SP, PC + 2);
+                memory.writeWord(SP, PC + 3);
                 PC = memory.readWord(++PC);
                 sb.append(nString.hexToString16(PC));
                 break;
             case 0xce:
-                // Length 2
                 // Cycles 7, flags S Z A P C
                 // Add with carry immediate
+                length = 2;
                 sb.append("ACI ");
                 cycles = 7;
                 data = memory.readByte(++PC);
@@ -2168,19 +2234,19 @@ public class CPU {
                 PC++;
                 break;
             case 0xcf:
-                // Length 1
                 // Cycles 11, no flags
                 // Call 0x0008
+                length = 1;
                 sb.append("RST 1");
                 // Save PC on stack
                 SP -= 2;
-                memory.writeWord(SP, PC);
+                memory.writeWord(SP, ++PC);
                 PC = 0x0008;
                 break;
             case 0xd0:
-                // Length 1
                 // Cycles 11/5, no flags
                 // Return no carry
+                length = 1;
                 sb.append("RNC");
                 if(!flag.carry) {
                     PC = memory.readWord(SP);
@@ -2190,37 +2256,35 @@ public class CPU {
                     cycles = 5;
                     PC++;
                 }
-                PC++;
                 break;
             case 0xd1:
-                // Length 1
                 // Cycles 10, no flags
                 // POP D off stack
+                length = 1;
                 sb.append("POP D");
                 cycles = 10;
                 register.DE(memory.readWord(SP));
+                SP += 2;
                 PC++;
                 break;
             case 0xd2:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump no carry
+                length = 3;
                 sb.append("JNC ");
-                PC++;
-                data = memory.readWord(PC);
-                sb.append(nString.hexToString16(data));
+                cycles = 10;
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(!flag.carry) {
-                    cycles = 10;
-                    PC = data;
+                    PC = address;
                 } else {
-                    cycles = 3; // Questionable
                     PC += 2;
                 }
                 break;
             case 0xd3:
-                // Length 2
                 // Cycles 10, no flags
                 // Data from A register placed in Port.
+                length = 2;
                 sb.append("OUT ");
                 data = memory.readByte(++PC);
                 sb.append(nString.hexToString16(data));
@@ -2231,27 +2295,26 @@ public class CPU {
                 PC++;
                 break;
             case 0xd4:
-                // Length 3
                 // Cycles 17/11, no flags
                 // Call no carry
+                length = 3;
                 sb.append("CNC ");
-                PC++;
-                data = memory.readWord(PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(!flag.carry) {
                     cycles = 17;
                     SP -= 2;
                     memory.writeWord(SP, PC + 2);
-                    PC = memory.readWord(data);
+                    PC = address;
                 } else {
                     cycles = 11;
                     PC += 2;
                 }
                 break;
             case 0xd5:
-                // Length 1
                 // Cycles 11, no flags
                 // PUSH D
+                length = 1;
                 sb.append("PUSH D");
                 cycles = 11;
                 SP -= 2;
@@ -2259,9 +2322,9 @@ public class CPU {
                 PC++;
                 break;
             case 0xd6:
-                // Length 2
                 // Cycles 7, flags S Z A P C
                 // Subtracts 8 bit data from contents of A register.
+                length = 2;
                 sb.append("SUI ");
                 cycles = 7;
                 data = memory.readByte(++PC);
@@ -2270,26 +2333,26 @@ public class CPU {
                 PC++;
                 break;
             case 0xd7:
-                // Length 1
                 // Cycles 11, no flags
                 // PC = 0x0010
+                length = 1;
                 sb.append("RST 2");
                 cycles = 11;
                 SP -= 2;
-                memory.writeWord(SP, PC);
+                memory.writeWord(SP, ++PC);
                 PC = 0x0010;
                 break;
             case 0xd8:
-                // Length 1
                 // Cycles 11/5, no flags
                 // Return carry
+                length = 1;
                 sb.append("RC ");
-                data = memory.readWord(SP);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(SP);
+                sb.append(nString.hexToString16(address));
                 if(flag.carry) {
                     cycles = 11;
                     // Get Return address
-                    PC = data;
+                    PC = address;
                     SP += 2;
                 } else {
                     cycles = 5;
@@ -2297,77 +2360,76 @@ public class CPU {
                 }
                 break;
             case 0xd9:
-                // Length 1
                 // Cycles 10, no flags
                 // Return
+                length = 1;
                 sb.append("*RET");
                 cycles = 10;
                 PC = memory.readWord(SP);
                 SP += 2;
                 break;
             case 0xda:
-                // Length 3
                 // Cycles 10
                 // Jump carry
+                length = 3;
                 sb.append("JC ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                cycles = 10;
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(flag.carry) {
-                    cycles = 10;
-                    PC = data;
+                    PC = address;
                 } else {
-                    cycles = 3; // questionable?
                     PC += 2;
                 }
                 break;
             case 0xdb:
-                // Length 2
                 // Cycles 10, no flags
                 // Data from Port placed in A register.
                 // INCOMPLETE!
+                length = 2;
                 sb.append("IN ");
                 cycles = 10;
                 data = memory.readByte(++PC);
                 sb.append(nString.hexToString8(data));
                 System.out.println("IN " + nString.hexToString8(data));
-                PC += 2;
+                PC++;
                 break;
             case 0xdc:
-                // Length 3
                 // Cycles 17/11, no flags
                 // Call carry
+                length = 3;
                 sb.append("CC ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(flag.carry) {
                     cycles = 17;
                     SP -= 2;
                     // Save return address on stack
                     memory.writeWord(SP, PC + 2);
-                    PC = data;
+                    PC = address;
                 } else {
                     cycles = 11;
                     PC += 2;
                 }
                 break;
             case 0xdd:
-                // Length 3
                 // Cycles 17, no flags
                 // Call
-                sb.append("*CALL");
+                length = 3;
+                sb.append("*CALL ");
                 cycles = 17;
+                // Save PC to stack
                 SP -= 2;
                 PC++;
                 memory.writeWord(SP, PC + 2);
                 // Get pointer
                 PC = memory.readWord(PC);
                 sb.append(nString.hexToString16(PC));
-                PC += 3;
                 break;
-            case 0xde:
-                // Length 2
+            case 0xde: // Show this one to Professor Calvin
                 // Cycles 7, flags S Z A P C
                 // Subtract with borrow immediately
+                length = 2;
                 sb.append("SBI ");
                 cycles = 7;
                 data = memory.readByte(++PC);
@@ -2376,18 +2438,18 @@ public class CPU {
                 PC++;
                 break;
             case 0xdf:
-                // Length 1
                 // Cycles 11, no flags
                 // PC = 0x0018
+                length = 1;
                 sb.append("RST 3");
                 SP -= 2;
-                memory.writeWord(SP, PC);
+                memory.writeWord(SP, ++PC);
                 PC = 0x0018;
                 break;
             case 0xe0:
-                // Length 1
                 // Cycles 11/5, no flags
                 // Return if parity odd
+                length = 1;
                 sb.append("RPO");
                 if(!flag.parity) {
                     cycles = 11;
@@ -2399,63 +2461,65 @@ public class CPU {
                 }
                 break;
             case 0xe1:
-                // Length 1
                 // Cycles 10, no flags
                 // POP H
+                length = 1;
                 sb.append("POP H");
                 register.HL(memory.readWord(SP));
                 SP += 2;
                 PC++;
                 break;
             case 0xe2:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump if parity odd
+                length = 3;
                 sb.append("JPO ");
                 cycles = 10;
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(!flag.parity) {
-                    PC = data;
+                    PC = address;
                 } else {
                     PC += 2;
                 }
                 break;
             case 0xe3:
-                // Length 1
                 // Cycles 18, no flags
                 // Exchanges HL with top of stack
+                length = 1;
                 sb.append("XTHL");
                 cycles = 18;
+                // Swap Stack and L
                 data = register.L;
                 register.L = memory.readByte(SP);
                 memory.writeByte(SP, data);
+                // Swap Stack and H
                 data = register.H;
                 register.H = memory.readByte(SP + 1);
                 memory.writeByte(SP + 1, data);
                 PC++;
                 break;
             case 0xe4:
-                // Length 3
                 // Cycles 17/11, no flags
                 // Carry if parity odd
+                length = 3;
                 sb.append("CPO ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(!flag.parity) {
                     cycles = 17;
                     SP -= 2;
                     memory.writeWord(SP, PC + 2);
-                    PC = data;
+                    PC = address;
                 } else {
                     cycles = 11;
                     PC += 2;
                 }
                 break;
             case 0xe5:
-                // Length 1
                 // Cycles 11, no flags
                 // PUSH H
+                length = 1;
                 sb.append("PUSH H");
                 cycles = 11;
                 SP -= 2;
@@ -2463,8 +2527,9 @@ public class CPU {
                 PC++;
                 break;
             case 0xe6:
-                // Length 2
                 // Cycles 7, S Z A P C
+                //  Logically ORs 8 bit data with contents of A register.
+                length = 2;
                 sb.append("ANI ");
                 cycles = 7;
                 data = memory.readByte(++PC);
@@ -2473,19 +2538,19 @@ public class CPU {
                 PC++;
                 break;
             case 0xe7:
-                // Length 1
                 // Cycles 11, no flags
                 // PC = 0x0020
+                length = 1;
                 sb.append("RST 4");
                 cycles = 11;
                 SP -= 2;
-                memory.writeWord(SP, PC);
+                memory.writeWord(SP, ++PC);
                 PC = 0x0020;
                 break;
             case 0xe8:
-                // Length 1
                 // Cycles 11/5, no flags
                 // Return if parity even
+                length = 1;
                 sb.append("RPE");
                 if(flag.parity) {
                     cycles = 11;
@@ -2497,31 +2562,31 @@ public class CPU {
                 }
                 break;
             case 0xe9:
-                // Length 1
                 // Cycles 5, no flags
                 // Puts contents of HL into PC (program counter) [=JMP (HL].
+                length = 1;
                 sb.append("PCHL");
                 cycles = 5;
                 PC = register.HL();
                 break;
             case 0xea:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump if parity even
+                length = 3;
                 sb.append("JPE ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 cycles = 10;
                 if(flag.parity) {
-                    PC = data;
+                    PC = address;
                 } else {
                     PC += 2;
                 }
                 break;
             case 0xeb:
-                // Length 1
                 // Cycles 5, no flags
                 // Exchanges HL and DE
+                length = 1;
                 sb.append("XCHG");
                 data = register.HL();
                 register.HL(register.DE());
@@ -2529,38 +2594,38 @@ public class CPU {
                 PC++;
                 break;
             case 0xec:
-                // Length 3
                 // Cycles 17/11, no flags
                 // Call if parity even
+                length = 3;
                 sb.append("CPE ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(flag.parity) {
                     cycles = 17;
                     SP -= 2;
                     memory.writeWord(SP, PC + 2);
-                    PC = data;
+                    PC = address;
                 } else {
                     cycles = 11;
                     PC += 2;
                 }
                 break;
             case 0xed:
-                // Length 3
                 // Cycles 17, no flags
                 // Call
+                length = 3;
                 sb.append("*CALL ");
                 cycles = 17;
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 SP -= 2;
                 memory.writeWord(SP, PC + 2);
-                PC = data;
+                PC = address;
                 break;
             case 0xee:
-                // Length 2
                 // Cycles 7, S Z A P C
                 // Exclusive-OR 8 bit data with A register.
+                length = 2;
                 sb.append("XRI ");
                 cycles = 7;
                 data = memory.readByte(++PC);
@@ -2569,20 +2634,20 @@ public class CPU {
                 PC++;
                 break;
             case 0xef:
-                // Length 1
                 // Cycles 11, no flags
                 // PC = 0x0028
+                length = 1;
                 sb.append("RST 5");
                 cycles = 11;
                 SP -= 2;
-                memory.writeWord(SP, PC);
+                memory.writeWord(SP, ++PC);
                 PC = 0x0028;
                 PC++;
                 break;
             case 0xf0:
-                // Length 1
                 // Cycles 11/5, no flags
                 // Return if not sign
+                length = 1;
                 sb.append("RP");
                 if(!flag.sign) {
                     cycles = 11;
@@ -2594,8 +2659,11 @@ public class CPU {
                 }
                 break;
             case 0xf1:
-                // Length 1
                 // Cycles 10, S Z A P C
+                // POP PSW + Register A
+                // first byte on stack is flags,
+                // second byte on stack is register A
+                length = 1;
                 sb.append("POP PSW");
                 cycles = 10;
                 data = memory.readByte(SP++);
@@ -2608,50 +2676,50 @@ public class CPU {
                 PC++;
                 break;
             case 0xf2:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump if not sign
+                length = 3;
                 sb.append("JP ");
                 cycles = 10;
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(!flag.sign) {
-                    PC = data;
+                    PC = address;
                 } else {
                     PC += 2;
                 }
                 break;
             case 0xf3:
-                // Length 1
                 // Cycles 4
                 // Disable Interrupts
+                length = 1;
                 sb.append("DI");
                 cycles = 4;
                 interrupts = false;
                 PC++;
                 break;
             case 0xf4:
-                // Length 3
                 // Cycles 17/11, no flags
                 // Call if not sign
+                length = 3;
                 sb.append("CP ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(!flag.sign) {
                     cycles = 17;
                     // Write return address to stack
                     SP -= 2;
                     memory.writeWord(SP, PC + 2);
-                    PC = data;
+                    PC = address;
                 } else {
                     cycles = 11;
                     PC += 2;
                 }
                 break;
             case 0xf5:
-                // Length 1
                 // Cycles 11, no flags
                 // PUSH PSW + A
+                length = 1;
                 sb.append("PUSH PSW");
                 cycles = 11;
                 memory.writeByte(--SP, register.A);
@@ -2659,9 +2727,9 @@ public class CPU {
                 PC++;
                 break;
             case 0xf6:
-                // Length 2
                 // Cycles 7, flags S Z A P C
                 // Logically ORs 8 bit data with contents of A register.
+                length = 2;
                 sb.append("ORI ");
                 cycles = 7;
                 data = memory.readByte(++PC);
@@ -2670,19 +2738,19 @@ public class CPU {
                 PC++;
                 break;
             case 0xf7:
-                // Length 1
                 // Cycles 11, no flags
                 // PC = 0x0030
+                length = 1;
                 sb.append("RST 6");
                 // store pc
                 SP -= 2;
-                memory.writeWord(SP, PC);
+                memory.writeWord(SP, ++PC);
                 PC = 0x0030;
                 break;
             case 0xf8:
-                // Length 1
                 // Cycles 11/5, no flags
                 // Return if sign
+                length = 1;
                 sb.append("RM");
                 if(flag.sign) {
                     cycles = 11;
@@ -2694,69 +2762,70 @@ public class CPU {
                 }
                 break;
             case 0xf9:
-                // Length 1
                 // Cycles 5, no flags
                 // Puts contents of HL into SP
+                length = 1;
                 sb.append("SPHL");
                 cycles = 5;
                 SP = register.HL();
                 PC++;
                 break;
             case 0xfa:
-                // Length 3
                 // Cycles 10, no flags
                 // Jump if sign
+                length = 3;
                 sb.append("JM ");
                 cycles = 10;
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(flag.sign) {
-                    PC = data;
+                    PC = address;
                 } else {
                     PC += 2;
                 }
                 break;
             case 0xfb:
-                // Length 1
                 // Cycles 4, no flags
                 // Enable interrupts
+                length = 1;
                 sb.append("EI");
                 cycles = 4;
                 interrupts = true;
                 PC++;
                 break;
             case 0xfc:
-                // Length 3
                 // Cycles 17/11, no flags
                 // Call if sign
+                length = 3;
                 sb.append("CM ");
-                data = memory.readWord(++PC);
-                sb.append(nString.hexToString16(data));
+                address = memory.readWord(++PC);
+                sb.append(nString.hexToString16(address));
                 if(flag.sign) {
                     cycles = 17;
                     SP -= 2;
                     memory.writeWord(SP, PC + 2);
-                    PC = data;
+                    PC = address;
                 } else {
                     cycles = 11;
                     PC += 2;
                 }
                 break;
             case 0xfd:
-                // Length 3
                 // Cycles 17, no flags
                 // Call
+                length = 3;
                 sb.append("*CALL ");
                 cycles = 17;
+                // Write return address to stack
                 SP -= 2;
-                memory.writeWord(SP, PC + 2);
+                memory.writeWord(SP, PC + 3);
                 PC = memory.readWord(++PC);
                 sb.append(nString.hexToString16(PC));
                 break;
             case 0xfe:
-                // Length 2
                 // Cycles 7, flags S Z A P C
                 // Compares 8 bit data with contents of A register.
+                length = 2;
                 sb.append("CPI ");
                 cycles = 7;
                 data = memory.readByte(++PC);
@@ -2765,17 +2834,19 @@ public class CPU {
                 PC++;
                 break;
             case 0xff:
-                // Length 1
                 // Cycles 11, no flags
                 // PC = 0x0038
+                length = 1;
                 sb.append("RST 7");
                 SP -= 2;
-                memory.writeWord(SP, PC);
+                memory.writeWord(SP, ++PC);
                 PC = 0x0038;
                 break;
         }
 
         currentInstruction = sb.toString();
+
+        callUpdate();
         return cycles;
     }
 }

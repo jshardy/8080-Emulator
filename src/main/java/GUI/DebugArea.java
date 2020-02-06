@@ -1,12 +1,18 @@
 package GUI;
 
+import Core.CPU;
+import Core.CPUChanged;
+import Utilities.Utils;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
 
-public class DebugArea extends JPanel {
-    JButton step;
-    InstructionPanel instructionPanel = new InstructionPanel();
+public class DebugArea extends JPanel implements CPUChanged {
+    private InstructionPanel instructionPanel = new InstructionPanel();
+    private OptionsPanel optionsPanel = new OptionsPanel();
+    private RegisterPanel registerPanel = new RegisterPanel();
+    private FlagsPanel flagsPanel = new FlagsPanel();
 
     public DebugArea() {
         //setMinimumSize(new Dimension(200,600));
@@ -14,9 +20,9 @@ public class DebugArea extends JPanel {
         child.setLayout(new GridLayout(4, 1));
         setLayout(new FlowLayout());
 
-        child.add(new OptionsPanel());
-        child.add(new RegisterPanel());
-        child.add(new FlagsPanel());
+        child.add(optionsPanel);
+        child.add(registerPanel);
+        child.add(flagsPanel);
         child.add(instructionPanel);
         add(child);
     }
@@ -26,7 +32,7 @@ public class DebugArea extends JPanel {
     }
 
     public void setNmemonic1Text(String text) {
-        instructionPanel.txtMnemonic3.setText(instructionPanel.txtMnemonic2.getText());
+        instructionPanel.txtRAW.setText(instructionPanel.txtMnemonic2.getText());
         instructionPanel.txtMnemonic2.setText(instructionPanel.txtMnemonic1.getText());
         instructionPanel.txtMnemonic1.setText(text);
     }
@@ -36,26 +42,49 @@ public class DebugArea extends JPanel {
     }
 
     public void setNmemonic3Text(String text) {
-        instructionPanel.txtMnemonic3.setText(text);
+        instructionPanel.txtRAW.setText(text);
     }
 
     public void setStepActionListener(ActionListener ac) {
-        step.addActionListener(ac);
+        optionsPanel.step.addActionListener(ac);
     }
 
-    public class OptionsPanel extends JPanel {
+    @Override
+    public void Updated(CPU cpu) {
+        // registers
+        registerPanel.a.setText(Utils.nString.hexToString8(cpu.getA()));
+        registerPanel.b.setText(Utils.nString.hexToString8(cpu.getB()));
+        registerPanel.c.setText(Utils.nString.hexToString8(cpu.getC()));
+        registerPanel.d.setText(Utils.nString.hexToString8(cpu.getD()));
+        registerPanel.e.setText(Utils.nString.hexToString8(cpu.getE()));
+        registerPanel.h.setText(Utils.nString.hexToString8(cpu.getH()));
+        registerPanel.l.setText(Utils.nString.hexToString8(cpu.getL()));
+
+        setNmemonic1Text(cpu.getCurrentInstruction());
+        instructionPanel.txtPC.setText(Utils.nString.hexToString16(cpu.getCurrentInstructionAddress()));
+        instructionPanel.txtRAW.setText(cpu.getRAW());
+        // flagPanel
+        flagsPanel.z.setText(cpu.getZero() ? "true" : "false");
+        flagsPanel.s.setText(cpu.getSign() ? "true" : "false");
+        flagsPanel.c.setText(cpu.getCarry() ? "true" : "false");
+        flagsPanel.ac.setText(cpu.getAuxCarry() ? "true" : "false");
+        flagsPanel.p.setText(cpu.getParity() ? "true" : "false");
+
+    }
+
+    private class OptionsPanel extends JPanel {
+        public JButton playPause = new JButton("Play/Pause");
+        public JButton stop = new JButton("Stop");
+        public JButton restart = new JButton("Restart");
+        public JButton step = new JButton("Step");
+        public JCheckBox singleStep = new JCheckBox("Single Step");
+
         public OptionsPanel() {
             setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
             JPanel child = new JPanel();
             child.setLayout(new GridLayout(3,2));
 
             setBorder(BorderFactory.createTitledBorder("Options"));
-
-            JButton playPause = new JButton("Play/Pause");
-            JButton stop = new JButton("Stop");
-            step = new JButton("Step");
-            JButton restart = new JButton("Restart");
-            JCheckBox singleStep = new JCheckBox("Single Step");
 
             child.add(playPause);
             child.add(stop);
@@ -66,14 +95,14 @@ public class DebugArea extends JPanel {
         }
     }
 
-    public class RegisterPanel extends JPanel {
-        private JTextField a = new JTextField();
-        private JTextField b = new JTextField();
-        private JTextField c = new JTextField();
-        private JTextField d = new JTextField();
-        private JTextField e = new JTextField();
-        private JTextField h = new JTextField();
-        private JTextField l = new JTextField();
+    private class RegisterPanel extends JPanel {
+        public JTextField a = new JTextField();
+        public JTextField b = new JTextField();
+        public JTextField c = new JTextField();
+        public JTextField d = new JTextField();
+        public JTextField e = new JTextField();
+        public JTextField h = new JTextField();
+        public JTextField l = new JTextField();
 
         public RegisterPanel() {
             setLayout(new FlowLayout());
@@ -142,12 +171,12 @@ public class DebugArea extends JPanel {
         }
     }
 
-    public class FlagsPanel extends JPanel {
-        private JTextField z = new JTextField();
-        private JTextField s = new JTextField();
-        private JTextField p = new JTextField();
-        private JTextField c = new JTextField();
-        private JTextField ac = new JTextField();
+    private class FlagsPanel extends JPanel {
+        public JTextField z = new JTextField();
+        public JTextField s = new JTextField();
+        public JTextField p = new JTextField();
+        public JTextField c = new JTextField();
+        public JTextField ac = new JTextField();
 
         public FlagsPanel() {
             setLayout(new FlowLayout());
@@ -222,7 +251,7 @@ public class DebugArea extends JPanel {
     private class InstructionPanel extends JPanel {
         public JTextField txtMnemonic1 = new JTextField();
         public JTextField txtMnemonic2 = new JTextField();
-        public JTextField txtMnemonic3 = new JTextField();
+        public JTextField txtRAW = new JTextField();
         public JTextField txtPC = new JTextField();
         public JList<String> listInstructions = new JList();
 
@@ -249,15 +278,15 @@ public class DebugArea extends JPanel {
             // Next instruction 2
             JPanel pc2Panel = new JPanel();
             pc2Panel.setLayout(new GridLayout(1,2));
-            pc2Panel.add(new JLabel("Next:"));
+            pc2Panel.add(new JLabel("Prev:"));
             pc2Panel.add(txtMnemonic2);
             child.add(pc2Panel);
 
             // Next instruction 3
             JPanel pc3Panel = new JPanel();
             pc3Panel.setLayout(new GridLayout(1,2));
-            pc3Panel.add(new JLabel("Next:"));
-            pc3Panel.add(txtMnemonic3);
+            pc3Panel.add(new JLabel("3B RAW:"));
+            pc3Panel.add(txtRAW);
             child.add(pc3Panel);
 
             // PC pointer

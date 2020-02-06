@@ -8,7 +8,6 @@ import java.awt.event.ActionListener;
 
 import Core.CPU;
 import Main.SettingsFile;
-import static Utilities.Utils.nString.*;
 
 public class MainWindow extends JFrame {
     JFrame mainWindow = this;
@@ -43,12 +42,7 @@ public class MainWindow extends JFrame {
         debugArea.setStepActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-
                 int cycle = cpu.stepExecute();
-                String instruction = cpu.getCurrentInstruction();
-
-                debugArea.setNmemonic1Text(instruction);
-                debugArea.setPC(hexToString16(cpu.getPC()));
             }
         });
 
@@ -57,6 +51,9 @@ public class MainWindow extends JFrame {
 
         byte[] memory = settingsFile.LoadROM("/home/jshardy/Projects/Emulator/src/roms/space_invaders.rom");
         cpu = new CPU(memory);
+
+        cpu.addUpdateCallback(debugArea);
+        cpu.addUpdateCallback(debugWindow);
     }
 
     public class StatusBar extends JPanel {
@@ -83,6 +80,7 @@ public class MainWindow extends JFrame {
     }
 
     public class VideoArea extends JPanel {
+
         @Override
         public void paint(Graphics g) {
             super.paint(g);
