@@ -13,13 +13,13 @@ public class Video {
         memory = mem;
     }
 
-    public void setPixel(address, value) {
+    //public void setPixel(address, value) {
         //Graphics g = db.getGraphics();
         //db.setRGB(x, y, rgb);
         //g.drawBytes();
-    }
+    //}
 
-    public update() {
+    //public update() {
 
-    }
+    //}
 }
