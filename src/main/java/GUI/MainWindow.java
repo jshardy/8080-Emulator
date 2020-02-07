@@ -49,7 +49,7 @@ public class MainWindow extends JFrame {
         add(videoArea);
         setVisible(true);
 
-        byte[] memory = settingsFile.LoadROM("/home/jshardy/Projects/Emulator/src/roms/space_invaders.rom");
+        byte[] memory = settingsFile.LoadROM("./src/roms/space_invaders.rom");
         cpu = new CPU(memory);
 
         cpu.addUpdateCallback(debugArea);
