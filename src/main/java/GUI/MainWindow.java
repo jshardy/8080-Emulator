@@ -15,7 +15,7 @@ public class MainWindow extends JFrame {
     DebugArea debugArea = new DebugArea();
     MenuBar menuBar = new MenuBar(new MenuActionListener());
     DebugWindow debugWindow = new DebugWindow();
-    JSplitPane splitPane = new JSplitPane();
+    JSplitPane splitPane = new JSplitPane(SwingConstants.VERTICAL, videoArea, debugArea);;
 
     CPU cpu;
     SettingsFile settingsFile = new SettingsFile();
@@ -35,7 +35,6 @@ public class MainWindow extends JFrame {
 
         setJMenuBar(menuBar);
 
-        splitPane = new JSplitPane(SwingConstants.VERTICAL, videoArea, debugArea);
         splitPane.setResizeWeight(1);
         splitPane.setVisible(true);
 
