@@ -11,7 +11,7 @@ public class SettingsFile {
     }
 
     public static byte[] LoadROM(String ROMFile) {
-        byte[] memory = new byte[2048];
+        byte[] memory = new byte[0x4000];
 
         try {
             FileInputStream file = new FileInputStream(ROMFile);

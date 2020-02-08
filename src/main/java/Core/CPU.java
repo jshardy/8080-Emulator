@@ -296,6 +296,18 @@ public class CPU {
         return count % 2 == 0;
     }
 
+    public int run(int maxCycles) {
+        int cycles = 0;
+
+        if(halt)
+            return 0;
+
+        while(maxCycles > cycles) {
+            cycles += stepExecute();
+        }
+        return cycles;
+    }
+
     public int stepExecute() {
         StringBuilder sb = new StringBuilder();
         int instruction = memory.readByte(PC);
