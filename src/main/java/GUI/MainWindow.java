@@ -7,17 +7,25 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 import Core.CPU;
+import Core.Video;
 import Main.SettingsFile;
 
 public class MainWindow extends JFrame {
     JFrame mainWindow = this;
-    VideoArea videoArea = new VideoArea();
+    VideoArea videoArea;
+    //Video video;
+
+    boolean running = false;
+
     DebugArea debugArea = new DebugArea();
     MenuBar menuBar = new MenuBar(new MenuActionListener());
     DebugWindow debugWindow = new DebugWindow();
     JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, videoArea, debugArea);
 
     CPU cpu;
+    Timing cpu_manager;
+    boolean started = false;
+
     SettingsFile settingsFile = new SettingsFile();
 
     public MainWindow() {
@@ -38,44 +46,33 @@ public class MainWindow extends JFrame {
         splitPane.setResizeWeight(1);
         splitPane.setVisible(true);
 
-        debugArea.setStepActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                int cycle = cpu.stepExecute();
-            }
+        debugArea.setStepActionListener(actionEvent -> {
+            cpu.stepExecute();
+            videoArea.repaint();
         });
+
+        debugArea.setPlayActionListener(actionEvent -> {
+            System.out.println(cpu_manager.running());
+            cpu_manager.start();
+        });
+
+        debugArea.setStopActionListener(actionEvent -> {
+            cpu_manager.stop();
+        });
+
+        byte[] memory = SettingsFile.LoadROM("./src/roms/space_invaders.rom");
+        cpu = new CPU(memory);
+        //video = new Video(cpu.getMemory());
+
+        videoArea = new VideoArea(cpu.getMemory());
 
         add(videoArea);
         setVisible(true);
 
-        byte[] memory = settingsFile.LoadROM("./src/roms/space_invaders.rom");
-        cpu = new CPU(memory);
-
         cpu.addUpdateCallback(debugArea);
         cpu.addUpdateCallback(debugWindow);
-    }
 
-    public class StatusBar extends JPanel {
-        int size = 10;
-        JLabel[] labels = new JLabel[size];
-
-        public StatusBar() {
-            setBorder(new BevelBorder(BevelBorder.LOWERED));
-            setPreferredSize(new Dimension(new Dimension(getWidth(), 16)));
-            //setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
-        }
-
-        public void setLabelText(int index, String text) {
-            if (index > 0 && index < size) {
-                labels[index].setText(text);
-            }
-        }
-
-        public void setVisible(int index, boolean hideORnot) {
-            if(index > 0 && index < size) {
-                labels[index].setVisible(hideORnot);
-            }
-        }
+        cpu_manager = new Timing(cpu, videoArea);
     }
 
     class MenuActionListener implements ActionListener {
@@ -127,7 +124,7 @@ public class MainWindow extends JFrame {
                 previous_size = temp_prev_size;
                 mainWindow.add(videoArea);
             }
-            
+
             mainWindow.repaint();
             debugVisible = !debugVisible;
         }

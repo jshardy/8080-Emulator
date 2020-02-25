@@ -40,6 +40,10 @@ public class DebugWindow extends JFrame implements CPUChanged {
     @Override
     public void Updated(CPU cpu) {
         StringBuilder sb = new StringBuilder();
+        sb.append(nString.hexToString16(cpu.getCurrentInstructionAddress()).substring(2));
+        sb.append(" ").append(cpu.getRAW()).append("\t\t");
+        sb.append(cpu.getCurrentInstruction());
+        sb.append("\t\n");
         sb.append("A=");
         sb.append(nString.hexToString8(cpu.getA()).substring(2));
         sb.append(" BC=");
@@ -50,6 +54,8 @@ public class DebugWindow extends JFrame implements CPUChanged {
         sb.append(nString.hexToString16(cpu.getHL()).substring(2));
         sb.append(" SP=");
         sb.append(nString.hexToString16(cpu.getSP()).substring(2));
+        sb.append(" PC=");
+        sb.append(nString.hexToString16(cpu.getPC()).substring(2));
         sb.append(" I");
         sb.append(cpu.getInterrupts() ? "1" : "0");
         sb.append(" S");
@@ -62,11 +68,7 @@ public class DebugWindow extends JFrame implements CPUChanged {
         sb.append(cpu.getParity() ? "1" : "0");
         sb.append(" C");
         sb.append(cpu.getCarry() ? "1" : "0");
-        printLine(sb.toString());
-        sb = new StringBuilder();
-        sb.append(nString.hexToString16(cpu.getCurrentInstructionAddress()).substring(2));
-        sb.append(" ").append(cpu.getRAW()).append("\t");
-        sb.append(cpu.getCurrentInstruction());
+
         printLine(sb.toString());
     }
 }

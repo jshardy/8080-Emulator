@@ -49,6 +49,14 @@ public class DebugArea extends JPanel implements CPUChanged {
         optionsPanel.step.addActionListener(ac);
     }
 
+    public void setPlayActionListener(ActionListener ac) {
+        optionsPanel.playPause.addActionListener(ac);
+    }
+
+    public void setStopActionListener(ActionListener ac) {
+        optionsPanel.step.addActionListener(ac);
+    }
+
     @Override
     public void Updated(CPU cpu) {
         // registers

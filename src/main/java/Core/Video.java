@@ -3,13 +3,11 @@ package Core;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 
-public class Video {
+public class Video implements VideoInterface {
     final int HEIGHT = 224;
     final int WIDTH = 256;
     final int VRAM = 0x2400;
 
-    private double fps = 30.0;
-    private long timePerFrame = (long) (1000000000.0 / fps);
     Memory memory;
     BufferedImage db = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
 
@@ -17,13 +15,14 @@ public class Video {
         memory = mem;
     }
 
-    public void setPixel(int x, int y, Color rgb) {
+    private void setPixel(int x, int y, Color rgb) {
         db.setRGB(x, y, rgb.getRGB());
     }
 
-    public void updateVideo() {
+    @Override
+    public BufferedImage drawVideoMemory() {
         if(memory == null)
-            return;
+            return null;
 
         for(int y = 0; y < HEIGHT; y++) {
             // x < 32 -- 32*8 = 256 - Each pixel is stored as a bit
@@ -39,7 +38,8 @@ public class Video {
 
                     // Rather than erase the buffer area, write each pixel each time.
                     // My goal is to help slow the emulator down by doing more work rather
-                    // than speed tricks.
+                    // than speed tricks. This may cause some serious tearing problems if
+                    // timing is off. -- Will fix in future
                     if (((pixelGroup >>> i) & 0x1) == 1) {
                         setPixel(pixelx, y, new Color(0, 255, 65));
                     } else {
@@ -48,5 +48,6 @@ public class Video {
                 }
             }
         }
+        return db;
     }
 }

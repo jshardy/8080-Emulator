@@ -1,16 +1,29 @@
 package GUI;
 
+import Core.Memory;
+import Core.VideoInterface;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 
 public class VideoArea extends JPanel {
+    Memory memory;
+    int frame_count = 0;
 
-    BufferedImage db = new BufferedImage(256, 224, BufferedImage.TYPE_INT_RGB);
+    public VideoArea(Memory mem) {
+        memory = mem;
+    }
+
     @Override
     public void paint(Graphics g) {
-        super.paint(g);
-        g.drawString("VideoArea", 15, 15);
-        System.out.println("paint() - VideoArea");
+        BufferedImage db = memory.getImage();
+
+        frame_count++;
+
+        g.drawImage(db, 0, 0, this);
+
+        g.setColor(new Color(255,255,255));
+        g.drawString("Frame Count: " + Integer.toString(frame_count), 5, 15);
     }
 }
