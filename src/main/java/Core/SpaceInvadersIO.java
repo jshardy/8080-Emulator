@@ -1,7 +1,5 @@
 package Core;
 
-import Utilities.Utils;
-
 public class SpaceInvadersIO implements InputOutput {
     private Port port1 = new Port();
     private Port port2 = new Port();

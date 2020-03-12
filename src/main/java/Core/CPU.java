@@ -2,7 +2,6 @@ package Core;
 
 import Utilities.Utils.nString;
 
-import javax.swing.*;
 import java.util.concurrent.Semaphore;
 
 public class CPU {
@@ -95,6 +94,7 @@ public class CPU {
     public CPU(Memory mem, InputOutput inout) {
         memory = mem;
         io = inout;
+        previousState = new CPUState(this);
     }
 
     public void setCPUChanged(CPUChanged callback) {
@@ -227,7 +227,8 @@ public class CPU {
         // S Z A P C
         int x = registerValue + register.A;
         flag.carry = (x & 0xf00) != 0; // 0x100
-        flag.auxCarry = ((x ^ register.A ^ registerValue) & 0xf0) != 0; // 0xf0
+        auxCarry8(register.A, registerValue);
+        //flag.auxCarry = ((x ^ register.A ^ registerValue) & 0xf0) != 0; // 0xf0
         register.A += registerValue;
         register.A &= 0xff;
         sign8(register.A);
@@ -256,7 +257,8 @@ public class CPU {
         int x = register.A - registerValue;
 
         flag.carry = (((x & 0xff00) >= register.A) && (registerValue > 0));
-        flag.auxCarry = ((register.A ^ x ^ registerValue) & 0xf0) != 0;//0x10(registerValue & 0xf) <= (register.A & 0xf);
+        auxCarry8(register.A, registerValue);
+        //flag.auxCarry = ((register.A ^ x ^ registerValue) & 0xf0) != 0;//0x10(registerValue & 0xf) <= (register.A & 0xf);
         sign8(x);
         zero(x);
         parity8(x);

@@ -19,9 +19,7 @@ public class CPUThreadMonitor implements Runnable {
         while(running) {
             try {
                 cpu.cpuBusy.acquire();
-                if(cpu.previousState != null) {
-                    debugArea.Updated(cpu.previousState);
-                }
+                debugArea.Updated(cpu.previousState);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
