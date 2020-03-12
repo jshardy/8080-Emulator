@@ -9,12 +9,12 @@ public class Timing implements Runnable {
     VideoArea videoArea;
     double fps = 59.54;
     Thread thread;
-    CPUStateTest test;
+    //CPUStateTest test;
     final int vblankHalfCycles = 32768;
 
     public Timing(CPU cpuUsed, VideoArea videoAreaUsed) {
         cpu = cpuUsed;
-        test = new CPUStateTest(cpu);
+        //test = new CPUStateTest(cpu);
         videoArea = videoAreaUsed;
     }
 

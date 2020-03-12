@@ -361,8 +361,6 @@ public class CPU {
         return count % 2 == 0;
     }
 
-    // These are different than the ones in the code!
-    // This triggers an interrupt from outside the code.
     public int interrupt(int interrupt_num) {
         interrupts = false;
 

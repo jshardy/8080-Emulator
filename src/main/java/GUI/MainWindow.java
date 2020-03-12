@@ -11,7 +11,7 @@ public class MainWindow extends JFrame {
     JFrame mainWindow = this;
     VideoArea videoArea;
     DebugArea debugArea = new DebugArea();
-    MenuBar menuBar = new MenuBar(new MenuActionListener());
+    MenuActionListener mnuAction = new MenuActionListener();
     //DebugWindow debugWindow = new DebugWindow();
     JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, videoArea, debugArea);
 
@@ -29,6 +29,7 @@ public class MainWindow extends JFrame {
         setSize(403, 224 * 2);
         setLocation(300,200);
 
+        MenuBar menuBar = new MenuBar(mnuAction);
         setJMenuBar(menuBar);
 
         splitPane.setResizeWeight(1);
@@ -79,7 +80,6 @@ public class MainWindow extends JFrame {
 
         cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
 
-
         add(videoArea);
         setVisible(true);
 
@@ -91,6 +91,7 @@ public class MainWindow extends JFrame {
     public void loadRom(String filename) {
         memoryByteArray = SettingsFile.LoadROM(filename);
         memory = new MemoryDefault(memoryByteArray);
+        // TODO: write a default IN/OUT system
         io = new SpaceInvadersIO();
         cpu = new CPU(memory, io);
     }
@@ -194,6 +195,7 @@ public class MainWindow extends JFrame {
                         videoArea.paintImmediately(videoArea.getVisibleRect());
                     } else {
                         cpu_manager.start();
+                        cpuThreadMonitor.start();
                     }
                     break;
                 case "Stop":
