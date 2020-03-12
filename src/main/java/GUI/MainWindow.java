@@ -19,8 +19,8 @@ public class MainWindow extends JFrame {
     Memory memory;
     SpaceInvadersIO io = new SpaceInvadersIO();
     Timing cpu_manager;
+    CPUThreadMonitor cpuThreadMonitor;
 
-    SettingsFile settingsFile = new SettingsFile();
     private byte[] memoryByteArray;
 
     public MainWindow() {
@@ -47,6 +47,7 @@ public class MainWindow extends JFrame {
                 debugArea.Updated(cpu.previousState);
                 videoArea.paintImmediately(videoArea.getVisibleRect());
             } else {
+                cpuThreadMonitor.start();
                 cpu_manager.start();
             }
         });
@@ -64,16 +65,20 @@ public class MainWindow extends JFrame {
             cpu_manager = new Timing(cpu, videoArea);
             cpu_manager.start();
         });
+        /*
         JFileChooser jf = new JFileChooser();
         int retVal = jf.showOpenDialog(MainWindow.this);
         String filename = jf.getSelectedFile().toString();
-
-        //memoryByteArray = SettingsFile.LoadROM("./src/roms/space_invaders.rom");
-        memoryByteArray = SettingsFile.LoadROM(filename);
+        */
+        memoryByteArray = SettingsFile.LoadROM("./src/roms/space_invaders.rom");
+        //memoryByteArray = SettingsFile.LoadROM(filename);
         memory = new SpaceInvadersMemory(memoryByteArray);
         cpu = new CPU(memory, io);
         cpu.setCPUChanged(debugArea);
         videoArea = new VideoArea(cpu.getMemory());
+
+        cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
+
 
         add(videoArea);
         setVisible(true);
@@ -148,7 +153,9 @@ public class MainWindow extends JFrame {
 
         @Override
         public void focusLost(FocusEvent focusEvent) {
-            mainWindow.requestFocus();
+            if(focusEvent.getCause() != FocusEvent.Cause.ACTIVATION) {
+                mainWindow.requestFocus();
+            }
         }
     }
 

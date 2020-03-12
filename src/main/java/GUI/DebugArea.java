@@ -14,7 +14,6 @@ public class DebugArea extends JPanel implements CPUChanged {
     private OptionsPanel optionsPanel = new OptionsPanel();
     private RegisterPanel registerPanel = new RegisterPanel();
     private FlagsPanel flagsPanel = new FlagsPanel();
-    private CPU cpu;
 
     public DebugArea() {
         //setMinimumSize(new Dimension(200,600));

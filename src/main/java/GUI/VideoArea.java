@@ -1,8 +1,6 @@
 package GUI;
 
 import Core.Memory;
-import Core.VideoInterface;
-import javafx.scene.transform.Scale;
 
 import javax.swing.*;
 import java.awt.*;
@@ -29,7 +27,6 @@ public class VideoArea extends JPanel {
     @Override
     public void paintComponent(Graphics g) {
         //g.drawImage(db, 0, 0, this);
-
         //g.setColor(new Color(255,255,255));
         //g.drawString("Frame Count: " + Integer.toString(frame_count), 5, 15);
         BufferedImage bf = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);

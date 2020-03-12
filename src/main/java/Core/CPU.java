@@ -2908,6 +2908,7 @@ public class CPU {
         currentInstruction = sb.toString();
         previousState = new CPUState(this);
         cpuBusy.release();
+        //changedCallback.Updated(new CPUState(this));
         return cycles;
     }
 }
