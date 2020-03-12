@@ -19,20 +19,15 @@ public class MenuBar extends JMenuBar {
         JMenuItem saveAsVM = new JMenuItem("Save VM As");
         saveAsVM.addActionListener(newAction);
 
-        JMenuItem exitVM = new JMenuItem("Exit");
-        exitVM.addActionListener(newAction);
-
         virtualMachine.add(createVM);
         virtualMachine.add(openVM);
         virtualMachine.addSeparator();
         virtualMachine.add(saveVM);
         virtualMachine.add(saveAsVM);
-        virtualMachine.addSeparator();
-        virtualMachine.add(exitVM);
-        add(virtualMachine);
+        //add(virtualMachine);
 
         // Preferences
-        JMenu preferences = new JMenu("Preferences");
+        JMenu preferences = new JMenu("Virtual Machine");
         JMenuItem rom = new JMenuItem("Rom...");
         rom.addActionListener(newAction);
         preferences.add(rom);
@@ -53,6 +48,11 @@ public class MenuBar extends JMenuBar {
         speed.add(mhz);
         preferences.add(speed);
         add(preferences);
+
+        JMenuItem exitVM = new JMenuItem("Exit");
+        exitVM.addActionListener(newAction);
+        preferences.addSeparator();
+        preferences.add(exitVM);
 
         // Run State
         JMenu runState = new JMenu("Run State");

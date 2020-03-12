@@ -1,8 +1,7 @@
 package GUI;
 
-import Core.CPU;
 import Core.CPUChanged;
-import Utilities.Utils.nString;
+import Core.CPUState;
 
 import javax.swing.*;
 import java.awt.*;
@@ -38,36 +37,36 @@ public class DebugWindow extends JFrame implements CPUChanged {
     }
 
     @Override
-    public void Updated(CPU cpu) {
+    public void Updated(CPUState cpu) {
         StringBuilder sb = new StringBuilder();
-        sb.append(nString.hexToString16(cpu.getCurrentInstructionAddress()).substring(2));
-        sb.append(" ").append(cpu.getRAW()).append("\t\t");
-        sb.append(cpu.getCurrentInstruction());
-        sb.append("\t\n");
-        sb.append("A=");
-        sb.append(nString.hexToString8(cpu.getA()).substring(2));
-        sb.append(" BC=");
-        sb.append(nString.hexToString16(cpu.getBC()).substring(2));
-        sb.append(" DE=");
-        sb.append(nString.hexToString16(cpu.getDE()).substring(2));
-        sb.append(" HL=");
-        sb.append(nString.hexToString16(cpu.getHL()).substring(2));
-        sb.append(" SP=");
-        sb.append(nString.hexToString16(cpu.getSP()).substring(2));
-        sb.append(" PC=");
-        sb.append(nString.hexToString16(cpu.getPC()).substring(2));
-        sb.append(" I");
-        sb.append(cpu.getInterrupts() ? "1" : "0");
-        sb.append(" S");
-        sb.append(cpu.getSign() ? "1" : "0");
-        sb.append(" Z");
-        sb.append(cpu.getZero() ? "1" : "0");
-        sb.append(" A");
-        sb.append(cpu.getAuxCarry() ? "1" : "0");
-        sb.append(" P");
-        sb.append(cpu.getParity() ? "1" : "0");
-        sb.append(" C");
-        sb.append(cpu.getCarry() ? "1" : "0");
+//        sb.append(nString.hexToString16(cpu.PC).substring(2));
+//        sb.append(" ").append(cpu.getRAW3Byte()).append("\t\t");
+//        sb.append(cpu.getCurrentInstruction());
+//        sb.append("\t\n");
+//        sb.append("A=");
+//        sb.append(nString.hexToString8(cpu.getA()).substring(2));
+//        sb.append(" BC=");
+//        sb.append(nString.hexToString16(cpu.getBC()).substring(2));
+//        sb.append(" DE=");
+//        sb.append(nString.hexToString16(cpu.getDE()).substring(2));
+//        sb.append(" HL=");
+//        sb.append(nString.hexToString16(cpu.getHL()).substring(2));
+//        sb.append(" SP=");
+//        sb.append(nString.hexToString16(cpu.getSP()).substring(2));
+//        sb.append(" PC=");
+//        sb.append(nString.hexToString16(cpu.getPC()).substring(2));
+//        sb.append(" I");
+//        sb.append(cpu.getInterrupts() ? "1" : "0");
+//        sb.append(" S");
+//        sb.append(cpu.getSign() ? "1" : "0");
+//        sb.append(" Z");
+//        sb.append(cpu.getZero() ? "1" : "0");
+//        sb.append(" A");
+//        sb.append(cpu.getAuxCarry() ? "1" : "0");
+//        sb.append(" P");
+//        sb.append(cpu.getParity() ? "1" : "0");
+//        sb.append(" C");
+//        sb.append(cpu.getCarry() ? "1" : "0");
 
         printLine(sb.toString());
     }

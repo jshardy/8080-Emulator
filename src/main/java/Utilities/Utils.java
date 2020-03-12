@@ -47,6 +47,19 @@ public class Utils {
             return sb.toString();
         }
 
+        public static String binaryToString8(int value) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(Integer.toBinaryString(value));
+
+            while(sb.length() < 8) {
+                sb.insert(0, "0");
+            }
+
+            sb.insert(0, "0b");
+
+            return sb.toString();
+        }
+
         public static String binaryToStringSpaced16(int value) {
             StringBuilder sb = new StringBuilder();
             sb.append(binaryToString16(value));

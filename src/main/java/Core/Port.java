@@ -3,16 +3,12 @@ package Core;
 public class Port {
     boolean[] bits = new boolean[8];
 
-    public void geteBit(int bit, boolean value) {
-        if(bit >= 0 && bit <= 7) {
-            bits[bit] = value;
-        } else {
-            // throw
-        }
-    }
-
     public boolean setBit(int bit, boolean value) {
         return bits[bit] = value;
+    }
+
+    public boolean getBit(int bit) {
+        return bits[bit];
     }
 
     public void setPort(int port) {

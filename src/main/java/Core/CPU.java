@@ -1,7 +1,9 @@
 package Core;
 
 import Utilities.Utils.nString;
-import java.util.ArrayList;
+
+import javax.swing.*;
+import java.util.concurrent.Semaphore;
 
 public class CPU {
     private class Registers {
@@ -11,7 +13,7 @@ public class CPU {
         public int E; // 3
         public int H; // 4
         public int L; // 5
-        //  M = memory // 6
+        // M = memory // 6
         public int A; // 7
 
         public int BC() {
@@ -40,7 +42,6 @@ public class CPU {
             H = (value >>> 8) & 0xff;
             L = value & 0xff;
         }
-
     }
 
     private class Flags {
@@ -51,13 +52,16 @@ public class CPU {
         public boolean auxCarry;
 
         public int getPSW() {
-            int data = 0;
-            data = carry ? 0x1 : 0;
-            data |= 0x2;    // always set -- this is not right..
-            data |= auxCarry ? 0x10 : 0;
-            data |= zero ? 0x40 : 0;
-            data |= sign ? 0x80 : 0;
-            return data;
+            Port p = new Port();
+            p.setBit(0, carry);
+            p.setBit(1, true);
+            p.setBit(2, parity);
+            p.setBit(3, false);
+            p.setBit(4, auxCarry);
+            p.setBit(5, false);
+            p.setBit(6, zero);
+            p.setBit(7, sign);
+            return p.getPort();
         }
         public void setPSW(int value) {
             carry = (value & 0x01) > 0;
@@ -70,6 +74,8 @@ public class CPU {
 
     private Memory memory;
     private Registers register = new Registers();
+    public CPUState previousState;
+    public InputOutput io;
     private Flags flag = new Flags();
     private Port port1 = new Port();
     private Port port2 = new Port();
@@ -82,28 +88,25 @@ public class CPU {
     private int SP = 0;
     private boolean interrupts = false;
     private boolean halt = false;
-    private ArrayList<CPUChanged> listCallbacks = new ArrayList<>();
-    private int CPUChanged_Count = 0;
+    private CPUChanged changedCallback;
 
-    public CPU(byte[] mem) {
-        memory = new Memory(mem);
-        memory.printOutMemory();
+    public Semaphore cpuBusy = new Semaphore(1);
+
+    public CPU(Memory mem, InputOutput inout) {
+        memory = mem;
+        io = inout;
     }
 
+    public void setCPUChanged(CPUChanged callback) {
+        changedCallback = callback;
+    }
 
+    public void setInputOutput(InputOutput inputOutput) {
+        io = inputOutput;
+    }
 
     public Memory getMemory() {
         return memory;
-    }
-
-    public void addUpdateCallback(CPUChanged changed) {
-        listCallbacks.add(changed);
-    }
-
-    private void callUpdate() {
-        for (CPUChanged listCallback : listCallbacks) {
-            listCallback.Updated(this);
-        }
     }
 
     public int getPC() { return PC; }
@@ -126,7 +129,8 @@ public class CPU {
     public boolean getParity() { return flag.parity; }
     public boolean getAuxCarry() { return flag.auxCarry; }
     public boolean getInterrupts() { return interrupts; }
-    public String getRAW() {
+
+    public String getRAW3Byte() {
         StringBuilder sb = new StringBuilder();
 
         for(int i = 0; i < length; i++) {
@@ -141,53 +145,94 @@ public class CPU {
         return currentInstruction;
     }
 
-    private void inxB() {
-        register.C++;
-        if(register.C > 0b1111) { // we aren't actually 8 bit, so we can detect value over flow easily
+    private void inxBC() {
+        if(++register.C > 0xff) {
             register.C = 0;
-            register.B++;
-            if(register.B > 0b1111) {
+            if(++register.B > 0xff) {
                 register.B = 0;
             }
         }
     }
 
-    private int inr(int registerValue) {
-        int x = registerValue & 0xf0; // save high nibble
+    private void dcxBC() {
+        if(--register.C < 0) {
+            register.C = 0xff;
+            if(--register.B < 0) {
+                register.B = 0xff;
+            }
+        }
+    }
 
+    private void inxDE() {
+        if(++register.E > 0xff) {
+            register.E = 0;
+            if(++register.D > 0xff) {
+                register.D = 0;
+            }
+        }
+    }
+
+    private void dcxDE() {
+        if(--register.E < 0) {
+            register.E = 0xff;
+            if(--register.D < 0) {
+                register.D = 0xff;
+            }
+        }
+    }
+
+    private void inxHL() {
+        if(++register.L > 0xff) {
+            register.L = 0;
+            if(++register.H > 0xff) {
+                register.H = 0;
+            }
+        }
+    }
+
+    private void dcxHL() {
+        if(--register.L < 0) {
+            register.L = 0xff;
+            if(--register.H < 0) {
+                register.H = 0xff;
+            }
+        }
+    }
+
+    private int inr(int registerValue) {
+        // S Z A P
         registerValue++;
         registerValue &= 0xff; // <255
-        flag.zero = (registerValue == 0);
-        flag.sign = (registerValue & 0x80) != 0; // 0b1000 0000
-        flag.auxCarry = x < (registerValue & 0xf0); // did bit 4 change?
+        zero(registerValue);
+        sign8(registerValue);
+        flag.auxCarry = (registerValue & 0xf) == 0;
         flag.parity = checkParity(registerValue, 8);
 
         return registerValue;
     }
 
     private int dcr(int registerValue) {
+        // S Z A P
         int x = registerValue & 0xf0; // save high nibble
-
         registerValue--;
         registerValue &= 0xff; // <255
-        flag.zero = (registerValue == 0);
-        flag.sign = (registerValue & 0x80) != 0; // 0b1000 0000
-        flag.auxCarry = x == (registerValue & 0xf0);
+        sign8(registerValue);
+        zero(registerValue);
+        flag.auxCarry = (registerValue & 0x0f) == 0x0f;
         flag.parity = checkParity(registerValue, 8);
-
         return registerValue;
     }
 
     private void add(int registerValue) {
         // S Z A P C
+        int x = registerValue + register.A;
+        flag.carry = (x & 0xf00) != 0; // 0x100
+        flag.auxCarry = ((x ^ register.A ^ registerValue) & 0xf0) != 0; // 0xf0
         register.A += registerValue;
+        register.A &= 0xff;
         sign8(register.A);
         zero(register.A);
         parity8(register.A);
-        carry16(register.A);
-        register.A &= 0xff; // <256
-        auxCarry8(registerValue, register.A);
-
     }
 
     private void adc(int registerValue) {
@@ -207,10 +252,11 @@ public class CPU {
     }
 
     private void sub(int registerValue) {
+        // S Z A C P
         int x = register.A - registerValue;
 
         flag.carry = (((x & 0xff00) >= register.A) && (registerValue > 0));
-        flag.auxCarry = (registerValue & 0xf) <= (register.A & 0xf);
+        flag.auxCarry = ((register.A ^ x ^ registerValue) & 0xf0) != 0;//0x10(registerValue & 0xf) <= (register.A & 0xf);
         sign8(x);
         zero(x);
         parity8(x);
@@ -218,13 +264,18 @@ public class CPU {
     }
 
     private void sbb(int registerValue) {
-        int x = register.A - registerValue - (flag.carry ? 1 : 0);
+        // S Z A C P
+        int x = register.A - registerValue;
 
         if(flag.carry) {
+            x -= 1;
+        }
+        /*if(flag.carry) {
             flag.auxCarry = (registerValue & 0xf) < (register.A & 0xf);
         } else {
             flag.auxCarry = (registerValue & 0xf) <= (register.A & 0xf);
-        }
+        }*/
+        auxCarry8(register.A, registerValue);
         flag.carry = ((x & 0xff) >= register.A) && ((registerValue > 0) | flag.carry);
 
         x &= 0xff; // <256
@@ -236,30 +287,30 @@ public class CPU {
 
     private void ana(int registerValue) {
         // S Z A P C
-        flag.auxCarry = ((register.A | registerValue) & 0x08) > 0;
+        //flag.auxCarry = (registerValue & 0xf) <= (register.A & 0xf);
+        flag.carry = false;
         register.A &= registerValue;
         sign8(register.A);
         zero(register.A);
         parity8(register.A);
-        flag.carry = false;
     }
 
     private void xra(int registerValue) {
         // S Z A P C
+        //auxCarry8(register.A, registerValue);
         register.A ^= registerValue;
         sign8(register.A);
         zero(register.A);
-        flag.auxCarry = false;
         parity8(register.A);
         flag.carry = false;
     }
 
     private void ora(int registerValue) {
         // S Z A P C
+        //auxCarry8(register.A, registerValue);
         register.A |= registerValue;
         sign8(register.A);
         zero(register.A);
-        flag.auxCarry = false;
         parity8(register.A);
         flag.carry = false;
     }
@@ -267,8 +318,8 @@ public class CPU {
     private void cmp(int registerValue) {
         // S Z A P C
         int x = register.A - registerValue;
-        flag.carry = ((registerValue & 0xff) >= register.A) && (registerValue > 0);
-        flag.auxCarry = (registerValue & 0xf) <= (register.A & 0xf);
+        flag.carry = (x & 0xf00) != 0; //0x100
+        auxCarry8(register.A, registerValue);
         sign8(x);
         zero(x);
         parity8(x);
@@ -280,7 +331,7 @@ public class CPU {
     }
 
     private void sign8(int value) {
-        flag.sign = (value & 0x80) > 0;
+        flag.sign = (value & 0x80) != 0;
     }
 
     private void carry8(int value) {
@@ -357,6 +408,13 @@ public class CPU {
 
         switch(instruction) {
             case 0x00:
+            case 0x08: // All NOP
+            case 0x10:
+            case 0x18:
+            case 0x20:
+            case 0x28:
+            case 0x30:
+            case 0x38:
                 // Cycles 4, no flags
                 // Do nothing
                 length = 1;
@@ -379,7 +437,7 @@ public class CPU {
                 // Cycles 7, no flags
                 // Copy register A value into address at BC
                 length = 1;
-                sb.append("MOV [BC]. A - STAX BC");
+                sb.append("MOV [BC], A - STAX BC");
                 cycles = 7;
                 memory.writeByte(register.BC(), register.A);
                 PC++;
@@ -390,7 +448,7 @@ public class CPU {
                 length = 1;
                 sb.append("INX BC");
                 cycles = 5;
-                inxB();
+                inxBC();
                 PC++;
                 break;
             case 0x04:
@@ -427,22 +485,8 @@ public class CPU {
                 length = 1;
                 sb.append("RLC");
                 cycles = 4;
-                sign8(register.A);
+                carry8(register.A);
                 register.A = (register.A << 1) | (register.A >> 7); // carry bit 7 back to bit 0
-                PC++;
-                break;
-            case 0x08: // All NOP
-            case 0x10:
-            case 0x18:
-            case 0x20:
-            case 0x28:
-            case 0x30:
-            case 0x38:
-                // Cycles 4, no flags
-                // NOP - Do Nothing
-                length = 1;
-                sb.append("*NOP");
-                cycles = 4;
                 PC++;
                 break;
             case 0x09:
@@ -451,8 +495,9 @@ public class CPU {
                 length = 1;
                 sb.append("DAD HL, BC");
                 cycles = 10;
-                carry16(register.BC() + register.HL());
+                //carry16(register.BC() + register.HL());
                 //flag.carry = ((register.BC() + register.HL()) & 0xFFFF0000) > 0; // did the calculation go over 16 bits?
+                flag.carry = (register.BC() & 0xf0000) != 0;
                 register.HL(register.BC() + register.HL());
                 PC++;
                 break;
@@ -471,7 +516,8 @@ public class CPU {
                 length = 1;
                 sb.append("DCX BC");
                 cycles = 5;
-                register.BC(register.BC() - 1);
+                dcxBC();
+                //register.BC(register.BC() - 1);
                 PC++;
                 break;
             case 0x0c:
@@ -539,7 +585,8 @@ public class CPU {
                 length = 1;
                 sb.append("INX DE");
                 cycles = 5;
-                register.DE(register.DE() + 1);
+                inxDE();
+                //register.DE(register.DE() + 1);
                 PC++;
                 break;
             case 0x14:
@@ -590,7 +637,7 @@ public class CPU {
                 sb.append("DAD DE");
                 cycles = 10;
                 data = register.DE() + register.HL();
-                carry16(data);
+                flag.carry = (register.DE() & 0xf0000) != 0;
                 register.HL(data);
                 PC++;
                 break;
@@ -598,7 +645,7 @@ public class CPU {
                 // Cycles 7, no flags
                 // Load indirect through BC or DE
                 length = 1;
-                sb.append("LDAX D, [DE]");
+                sb.append("MOV A, [DE] - LDAX D, [DE]");
                 cycles = 7;
                 register.A = memory.readByte(register.DE());
                 PC++;
@@ -609,7 +656,8 @@ public class CPU {
                 length = 1;
                 sb.append("DCX D");
                 cycles = 5;
-                register.DE(register.DE() - 1);
+                dcxDE();
+                //register.DE(register.DE() - 1);
                 PC++;
                 break;
             case 0x1c:
@@ -683,7 +731,8 @@ public class CPU {
                 length = 1;
                 sb.append("INX HL");
                 cycles = 5;
-                register.HL(register.HL() + 1);
+                inxHL();
+                //register.HL(register.HL() + 1);
                 PC++;
                 break;
             case 0x24:
@@ -730,7 +779,8 @@ public class CPU {
                 sb.append("DAD HL");
                 cycles = 10;
                 data = register.HL() + register.HL();
-                carry16(data);
+                flag.carry = (register.HL() & 0x10000) != 0;
+                //carry16(data);
                 register.HL(data);
                 PC++;
                 break;
@@ -752,7 +802,8 @@ public class CPU {
                 length = 1;
                 sb.append("DCX HL");
                 cycles = 5;
-                register.HL(register.HL() - 1);
+                dcxHL();
+                //register.HL(register.HL() - 1);
                 PC++;
                 break;
             case 0x2c:
@@ -821,7 +872,7 @@ public class CPU {
                 sb.append("INX SP");
                 cycles = 5;
                 ++SP;
-                SP &= 0xffff; // <65536 - cut off upper bits because using 32 bit int
+                SP &= 0xffff; // <65535 - cut off upper bits because using 32 bit int
                 PC++;
                 break;
             case 0x34:
@@ -830,7 +881,8 @@ public class CPU {
                 length = 1;
                 cycles = 10;
                 sb.append("INR [HL]");
-                data = inr(register.HL());
+                data = memory.readByte(register.HL());
+                data = inr(data);
                 memory.writeByte(register.HL(), data);
                 PC++;
                 break;
@@ -2142,10 +2194,8 @@ public class CPU {
                 // Cycles 17/11, no flags
                 // Call on NOT zero
                 length = 3;
-                sb.append("CNZ [");
+                sb.append("CNZ ");
                 address = memory.readWord(++PC);
-                sb.append(nString.hexToString8(address) + "] -> ");
-                address = memory.readWord(address);
                 sb.append(nString.hexToString16(address));
                 if(!flag.zero) {
                     SP -= 2;
@@ -2178,7 +2228,7 @@ public class CPU {
                 data = memory.readByte(++PC);
                 sb.append(nString.hexToString8(data));
                 add(data);
-                PC += 2;
+                PC++;
                 break;
             case 0xc7:
                 // Cycles 11, no flags
@@ -2257,6 +2307,9 @@ public class CPU {
                 }
                 break;
             case 0xcd:
+            case 0xfd:
+            case 0xdd:
+            case 0xed:
                 // Cycles 17, no flags
                 // Call subroutine
                 length = 3;
@@ -2336,29 +2389,7 @@ public class CPU {
                 cycles = 10;
                 data = memory.readByte(++PC);
                 sb.append(nString.hexToString16(data));
-                // data has the device # in it.
-                switch(data) {
-                    case 2:
-                        System.out.println("OUT DEV=2 (8 - Register.A) = " + nString.hexToString8(register.A));
-                        shiftOffset = 0x8 - register.A;
-                        break;
-                    case 3:
-                        // Sound
-                        System.out.println("OUT DEV=3 Sound# = " + nString.hexToString8(register.A));
-                        break;
-                    case 4:
-                        System.out.print("OUT DEV=4 Shift Register");
-                        System.out.print(" ShiftRegisterBEFORE = " + nString.hexToString8(shiftRegister));
-                        shiftRegister >>>= 8;
-                        System.out.print(" ShiftRegisterAFTER = " + nString.hexToString8(shiftRegister));
-                        shiftRegister |= register.A << 8;
-                        System.out.print(" ShiftRegisterAFTER_A = " + nString.hexToString8(shiftRegister));
-                        break;
-                    case 5:
-                        // Sound
-                        System.out.println("OUT DEV=5 Sound#=" + nString.hexToString8(register.A));
-                        break;
-                }
+                io.out(data, register.A);
                 PC++;
                 break;
             case 0xd4:
@@ -2384,7 +2415,6 @@ public class CPU {
                 length = 1;
                 sb.append("PUSH D");
                 cycles = 11;
-                SP -= 2;
                 memory.writeByte(--SP, register.D);
                 memory.writeByte(--SP, register.E);
                 PC++;
@@ -2453,25 +2483,12 @@ public class CPU {
             case 0xdb:
                 // Cycles 10, no flags
                 // Data from Port placed in A register.
-                // INCOMPLETE!
                 length = 2;
                 sb.append("IN ");
                 cycles = 10;
                 data = memory.readByte(++PC);
-                switch(data) {
-                    case 1:
-                        register.A = port1.getPort();
-                        port1.setPort(port1.getPort() & 0xfe); // turn everything but first bit on
-                        break;
-                    case 2:
-                        register.A = port2.getPort();
-                        break;
-                    case 3:
-                        register.A = (shiftRegister >>> shiftOffset) & 0xff; // keep it 8 bits
-                        break;
-                }
                 sb.append(nString.hexToString8(data));
-                System.out.println("IN " + nString.hexToString8(data));
+                register.A = io.in(data);
                 PC++;
                 break;
             case 0xdc:
@@ -2491,20 +2508,6 @@ public class CPU {
                     cycles = 11;
                     PC += 2;
                 }
-                break;
-            case 0xdd:
-                // Cycles 17, no flags
-                // Call
-                length = 3;
-                sb.append("*CALL ");
-                cycles = 17;
-                // Save PC to stack
-                SP -= 2;
-                PC++;
-                memory.writeWord(SP, PC + 2);
-                // Get pointer
-                PC = memory.readWord(PC);
-                sb.append(nString.hexToString16(PC));
                 break;
             case 0xde: // Show this one to Professor Calvin
                 // Cycles 7, flags S Z A P C
@@ -2645,7 +2648,7 @@ public class CPU {
                 break;
             case 0xe9:
                 // Cycles 5, no flags
-                // Puts contents of HL into PC (program counter) [=JMP (HL].
+                // Puts contents of HL into PC (program counter) JMP HL.
                 length = 1;
                 sb.append("PCHL");
                 cycles = 5;
@@ -2694,18 +2697,6 @@ public class CPU {
                     PC += 2;
                 }
                 break;
-            case 0xed:
-                // Cycles 17, no flags
-                // Call
-                length = 3;
-                sb.append("*CALL ");
-                cycles = 17;
-                address = memory.readWord(++PC);
-                sb.append(nString.hexToString16(address));
-                SP -= 2;
-                memory.writeWord(SP, PC + 2);
-                PC = address;
-                break;
             case 0xee:
                 // Cycles 7, S Z A P C
                 // Exclusive-OR 8 bit data with A register.
@@ -2752,11 +2743,6 @@ public class CPU {
                 cycles = 10;
                 data = memory.readByte(SP++);
                 flag.setPSW(data);
-                //flag.carry = (data & 0x01) > 0;
-                //flag.parity = (data & 0x04) > 0;
-                //flag.auxCarry = (data & 0x10) > 0;
-                //flag.zero = (data & 0x40) > 0;
-                //flag.sign = (data & 0x80) > 0;
                 register.A = memory.readByte(SP++);
                 PC++;
                 break;
@@ -2896,18 +2882,6 @@ public class CPU {
                     PC += 2;
                 }
                 break;
-            case 0xfd:
-                // Cycles 17, no flags
-                // Call
-                length = 3;
-                sb.append("*CALL ");
-                cycles = 17;
-                // Write return address to stack
-                SP -= 2;
-                memory.writeWord(SP, PC + 3);
-                PC = memory.readWord(++PC);
-                sb.append(nString.hexToString16(PC));
-                break;
             case 0xfe:
                 // Cycles 7, flags S Z A P C
                 // Compares 8 bit data with contents of A register.
@@ -2932,8 +2906,8 @@ public class CPU {
         }
 
         currentInstruction = sb.toString();
-
-        callUpdate();
+        previousState = new CPUState(this);
+        cpuBusy.release();
         return cycles;
     }
 }

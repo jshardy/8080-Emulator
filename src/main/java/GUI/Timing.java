@@ -1,6 +1,7 @@
 package GUI;
 
 import Core.CPU;
+import Core.CPUStateTest;
 
 public class Timing implements Runnable {
     boolean running = false;
@@ -8,33 +9,33 @@ public class Timing implements Runnable {
     VideoArea videoArea;
     double fps = 59.54;
     Thread thread;
+    CPUStateTest test;
+    final int vblankHalfCycles = 32768;
 
     public Timing(CPU cpuUsed, VideoArea videoAreaUsed) {
         cpu = cpuUsed;
+        test = new CPUStateTest(cpu);
         videoArea = videoAreaUsed;
     }
 
     @Override
     public void run() {
         long timeNext = System.nanoTime();
-        long timeFrame = (long) (100000000000.0 / fps);
+        long timeFrame = (long) (1000000000.0 / fps);
 
         while(running) {
             do {
-                System.out.println("timeNext:" + timeNext + " " + System.nanoTime());
                 update();
                 timeNext += timeFrame;
-            } while(System.nanoTime() >= timeNext);
+            } while(System.nanoTime() - timeNext >= timeFrame);
 
-            System.out.println("Thread - videoArea.repaint() - called");
-            videoArea.repaint();
+            videoArea.paintImmediately(videoArea.getVisibleRect());
             long sleepTime = (timeNext - System.nanoTime()) / 1000000;
             if(sleepTime > 0) {
                 try {
-                    System.out.println("Sleeping for " + sleepTime + " ns");
                     Thread.sleep(sleepTime);
                 } catch (InterruptedException e) {
-                    System.out.println("Un-Paused");
+                    System.out.println("Spurious wakeup");
                 }
             }
         }
@@ -42,14 +43,14 @@ public class Timing implements Runnable {
 
     public void update() {
         int cycles = 0;
-        //16768
-        while(cycles < 16768) {
+        while(cycles < vblankHalfCycles) {
             cycles += cpu.stepExecute();
         }
+
         cycles = 0;
         // start vblank
         cpu.interrupt(0xcf);
-        while(cycles < 16768) {
+        while(cycles < vblankHalfCycles) {
             cycles += cpu.stepExecute();
         }
         // end vblank
@@ -59,10 +60,8 @@ public class Timing implements Runnable {
     public void start() {
         running = !running;
 
-        if(thread == null && running) {
+        if(running) {
             thread = new Thread(this, "CPU Manager");
-            thread.start();
-        } else if (thread != null && running) {
             thread.start();
         }
     }
@@ -71,13 +70,13 @@ public class Timing implements Runnable {
         return running;
     }
 
-    public synchronized void pause() throws InterruptedException {
+    public synchronized void pause() {
         running = false;
+        thread = null;
     }
 
     public synchronized void resume() {
-        running = true;
-        notify();
+        start();
     }
 
     public void stop() {

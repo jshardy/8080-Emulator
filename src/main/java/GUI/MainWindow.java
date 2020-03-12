@@ -1,44 +1,32 @@
 package GUI;
 
 import javax.swing.*;
-import javax.swing.border.BevelBorder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.*;
 
-import Core.CPU;
-import Core.Video;
+import Core.*;
 import Main.SettingsFile;
 
 public class MainWindow extends JFrame {
     JFrame mainWindow = this;
     VideoArea videoArea;
-    //Video video;
-
-    boolean running = false;
-
     DebugArea debugArea = new DebugArea();
     MenuBar menuBar = new MenuBar(new MenuActionListener());
-    DebugWindow debugWindow = new DebugWindow();
+    //DebugWindow debugWindow = new DebugWindow();
     JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, videoArea, debugArea);
 
     CPU cpu;
+    Memory memory;
+    SpaceInvadersIO io = new SpaceInvadersIO();
     Timing cpu_manager;
-    boolean started = false;
 
     SettingsFile settingsFile = new SettingsFile();
+    private byte[] memoryByteArray;
 
     public MainWindow() {
-        /*
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch(Exception e) {
-            System.out.println("Unable to set Look and Feel to default UI for OS.");
-        }
-         */
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         //setSize(800, 500);
-        setSize(256 * 2, 224 * 2);
+        setSize(403, 224 * 2);
         setLocation(300,200);
 
         setJMenuBar(menuBar);
@@ -48,31 +36,120 @@ public class MainWindow extends JFrame {
 
         debugArea.setStepActionListener(actionEvent -> {
             cpu.stepExecute();
-            videoArea.repaint();
+            debugArea.Updated(cpu.previousState);
+            videoArea.paintImmediately(videoArea.getVisibleRect());
         });
 
         debugArea.setPlayActionListener(actionEvent -> {
-            System.out.println(cpu_manager.running());
-            cpu_manager.start();
+            if(debugArea.getStepCheckBox()) {
+                cpu_manager.stop();
+                cpu.stepExecute();
+                debugArea.Updated(cpu.previousState);
+                videoArea.paintImmediately(videoArea.getVisibleRect());
+            } else {
+                cpu_manager.start();
+            }
         });
 
         debugArea.setStopActionListener(actionEvent -> {
             cpu_manager.stop();
         });
 
-        byte[] memory = SettingsFile.LoadROM("./src/roms/space_invaders.rom");
-        cpu = new CPU(memory);
-        //video = new Video(cpu.getMemory());
+        debugArea.setRestartActionListener(actionEvent -> {
+            cpu_manager.stop();
+            memory = new SpaceInvadersMemory(memoryByteArray);
+            io = new SpaceInvadersIO();
+            cpu = new CPU(memory, io);
+            videoArea.setVideoMemory(memory);
+            cpu_manager = new Timing(cpu, videoArea);
+            cpu_manager.start();
+        });
+        JFileChooser jf = new JFileChooser();
+        int retVal = jf.showOpenDialog(MainWindow.this);
+        String filename = jf.getSelectedFile().toString();
 
+        //memoryByteArray = SettingsFile.LoadROM("./src/roms/space_invaders.rom");
+        memoryByteArray = SettingsFile.LoadROM(filename);
+        memory = new SpaceInvadersMemory(memoryByteArray);
+        cpu = new CPU(memory, io);
+        cpu.setCPUChanged(debugArea);
         videoArea = new VideoArea(cpu.getMemory());
 
         add(videoArea);
         setVisible(true);
 
-        cpu.addUpdateCallback(debugArea);
-        cpu.addUpdateCallback(debugWindow);
-
         cpu_manager = new Timing(cpu, videoArea);
+        this.addKeyListener(new keyInput());
+        this.addFocusListener(new FocusInput());
+    }
+
+    public void loadRom(String filename) {
+        memoryByteArray = SettingsFile.LoadROM(filename);
+        memory = new MemoryDefault(memoryByteArray);
+        io = new SpaceInvadersIO();
+        cpu = new CPU(memory, io);
+    }
+
+    public class keyInput implements KeyListener {
+        Boolean started = false;
+        @Override
+        public void keyTyped(KeyEvent keyEvent) {
+
+        }
+
+        @Override
+        public void keyPressed(KeyEvent keyEvent) {
+            System.out.println(keyEvent.getKeyChar());
+            switch(keyEvent.getKeyCode()) {
+                case KeyEvent.VK_SPACE:
+                    io.getPort1().setBit(4, true);
+                    break;
+                case KeyEvent.VK_LEFT:
+                    io.getPort1().setBit(5, true);
+                    break;
+                case KeyEvent.VK_RIGHT:
+                    io.getPort1().setBit(6, true);
+                    break;
+                default:
+                    if(started) {
+                        io.getPort1().setBit(2, true);
+                    }
+
+                    if(!started) {
+                        io.getPort1().setPort(0x1);
+                        io.getPort2().setPort(0x0);
+                        started = true;
+                    }
+                    break;
+            }
+        }
+
+        @Override
+        public void keyReleased(KeyEvent keyEvent) {
+            switch(keyEvent.getKeyCode()) {
+                case KeyEvent.VK_SPACE:
+                    io.getPort1().setBit(4, false);
+                    break;
+                case KeyEvent.VK_LEFT:
+                    io.getPort1().setBit(5, false);
+                    break;
+                case KeyEvent.VK_RIGHT:
+                    io.getPort1().setBit(6, false);
+                    break;
+            }
+        }
+    }
+
+    public class FocusInput implements FocusListener {
+        @Override
+        public void focusGained(FocusEvent focusEvent) {
+
+        }
+
+        @Override
+        public void focusLost(FocusEvent focusEvent) {
+            mainWindow.requestFocus();
+        }
     }
 
     class MenuActionListener implements ActionListener {
@@ -91,20 +168,44 @@ public class MainWindow extends JFrame {
                 case "Save VM As":
                     break;
                 case "Exit":
+                    System.exit(0);
                     break;
-                case "ROM...":
+                case "Rom...":
+                    JFileChooser jf = new JFileChooser();
+                    int retVal = jf.showOpenDialog(MainWindow.this);
+                    String filename = jf.getSelectedFile().toString();
+                    loadRom(filename);
                     break;
                 case "Disk...":
+
                     break;
                 case "Play/Pause":
+                    if(debugArea.getStepCheckBox()) {
+                        cpu_manager.stop();
+                        cpu.stepExecute();
+                        debugArea.Updated(cpu.previousState);
+                        videoArea.paintImmediately(videoArea.getVisibleRect());
+                    } else {
+                        cpu_manager.start();
+                    }
                     break;
                 case "Stop":
+                    cpu_manager.stop();
                     break;
                 case "Restart":
+                    cpu_manager.stop();
+                    memory = new SpaceInvadersMemory(memoryByteArray);
+                    io = new SpaceInvadersIO();
+                    cpu = new CPU(memory, io);
+                    videoArea.setVideoMemory(memory);
+                    cpu_manager = new Timing(cpu, videoArea);
+                    cpu_manager.start();
                     break;
                 case "Debug Bar":
                     toggleDebugBarVisible();
                     break;
+                default:
+                    System.out.println("Uncaught: " + actionEvent.getActionCommand());
             }
         }
 
@@ -118,6 +219,9 @@ public class MainWindow extends JFrame {
                 previous_size = temp_prev_size;
                 mainWindow.add(splitPane);
                 splitPane.add(videoArea, 0);
+                Dimension d = mainWindow.getSize();
+                d.width -= 135;
+                mainWindow.setSize(d);
             }
             else if(debugVisible)
             {

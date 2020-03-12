@@ -2,6 +2,7 @@ package GUI;
 
 import Core.CPU;
 import Core.CPUChanged;
+import Core.CPUState;
 import Utilities.Utils;
 
 import javax.swing.*;
@@ -13,6 +14,7 @@ public class DebugArea extends JPanel implements CPUChanged {
     private OptionsPanel optionsPanel = new OptionsPanel();
     private RegisterPanel registerPanel = new RegisterPanel();
     private FlagsPanel flagsPanel = new FlagsPanel();
+    private CPU cpu;
 
     public DebugArea() {
         //setMinimumSize(new Dimension(200,600));
@@ -54,30 +56,37 @@ public class DebugArea extends JPanel implements CPUChanged {
     }
 
     public void setStopActionListener(ActionListener ac) {
-        optionsPanel.step.addActionListener(ac);
+        optionsPanel.stop.addActionListener(ac);
+    }
+
+    public void setRestartActionListener(ActionListener ac) {
+        optionsPanel.restart.addActionListener(ac);
+    }
+
+    public boolean getStepCheckBox() {
+        return optionsPanel.singleStep.isSelected();
     }
 
     @Override
-    public void Updated(CPU cpu) {
+    public void Updated(CPUState cpuState) {
         // registers
-        registerPanel.a.setText(Utils.nString.hexToString8(cpu.getA()));
-        registerPanel.b.setText(Utils.nString.hexToString8(cpu.getB()));
-        registerPanel.c.setText(Utils.nString.hexToString8(cpu.getC()));
-        registerPanel.d.setText(Utils.nString.hexToString8(cpu.getD()));
-        registerPanel.e.setText(Utils.nString.hexToString8(cpu.getE()));
-        registerPanel.h.setText(Utils.nString.hexToString8(cpu.getH()));
-        registerPanel.l.setText(Utils.nString.hexToString8(cpu.getL()));
+        registerPanel.a.setText(Utils.nString.hexToString8(cpuState.A));
+        registerPanel.b.setText(Utils.nString.hexToString8(cpuState.B));
+        registerPanel.c.setText(Utils.nString.hexToString8(cpuState.C));
+        registerPanel.d.setText(Utils.nString.hexToString8(cpuState.D));
+        registerPanel.e.setText(Utils.nString.hexToString8(cpuState.E));
+        registerPanel.h.setText(Utils.nString.hexToString8(cpuState.H));
+        registerPanel.l.setText(Utils.nString.hexToString8(cpuState.L));
 
-        setNmemonic1Text(cpu.getCurrentInstruction());
-        instructionPanel.txtPC.setText(Utils.nString.hexToString16(cpu.getCurrentInstructionAddress()));
-        instructionPanel.txtRAW.setText(cpu.getRAW());
+        setNmemonic1Text(cpuState.instruction);
+        instructionPanel.txtPC.setText(Utils.nString.hexToString16(cpuState.PC));
+        //instructionPanel.txtRAW.setText(cpuState.getRAW3Byte());
         // flagPanel
-        flagsPanel.z.setText(cpu.getZero() ? "true" : "false");
-        flagsPanel.s.setText(cpu.getSign() ? "true" : "false");
-        flagsPanel.c.setText(cpu.getCarry() ? "true" : "false");
-        flagsPanel.ac.setText(cpu.getAuxCarry() ? "true" : "false");
-        flagsPanel.p.setText(cpu.getParity() ? "true" : "false");
-
+        flagsPanel.z.setText(cpuState.zero ? "true" : "false");
+        flagsPanel.s.setText(cpuState.sign ? "true" : "false");
+        flagsPanel.c.setText(cpuState.carry ? "true" : "false");
+        flagsPanel.ac.setText(cpuState.auxcarry ? "true" : "false");
+        flagsPanel.p.setText(cpuState.parity ? "true" : "false");
     }
 
     private class OptionsPanel extends JPanel {
