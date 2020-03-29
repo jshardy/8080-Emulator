@@ -105,7 +105,7 @@ public class MainWindow extends JFrame {
 
         @Override
         public void keyPressed(KeyEvent keyEvent) {
-            System.out.println(keyEvent.getKeyChar());
+            //System.out.println(keyEvent.getKeyChar());
             switch(keyEvent.getKeyCode()) {
                 case KeyEvent.VK_SPACE:
                     io.getPort1().setBit(4, true);

@@ -1,9 +1,6 @@
 package Core;
 
-
 import Utilities.Utils;
-
-import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 
@@ -71,6 +68,8 @@ public class SpaceInvadersMemory implements Memory {
         writeByte(address + 1, high);
     }
 
+    // setPixel(address, on/off)
+    // Sets a pixel on or off
     public void setPixel(int address, int value) {
         int offset = address - 0x2400;
         int x = offset >>> 5; // upper 5 bits are start of x
@@ -89,12 +88,16 @@ public class SpaceInvadersMemory implements Memory {
         // 8 bits to draw.
         int currentLocation = (y * WIDTH) + x;
         for(int i = 7; i >= 0; i--) {
+            // Each bit represents on or off pixel
+            // 1 bit = 8 pixels
             if((value & (1 << i)) != 0) {
                 rawPixelData[currentLocation] = currentColor;
             } else {
                 rawPixelData[currentLocation] = BLACK;
             }
-            //drawing y axis first
+            // drawing y axis first
+            // Remember original Space Invaders
+            // screen was sideways
             currentLocation += WIDTH;
         }
     }
