@@ -207,7 +207,7 @@ public class CPU {
         registerValue &= 0xff; // <255
         zero(registerValue);
         sign8(registerValue);
-        flag.auxCarry = (registerValue & 0xf) == 0;
+        flag.auxCarry = registerValue > 0x9;
         flag.parity = checkParity(registerValue, 8);
 
         return registerValue;
@@ -220,7 +220,7 @@ public class CPU {
         registerValue &= 0xff; // <255
         sign8(registerValue);
         zero(registerValue);
-        flag.auxCarry = (registerValue & 0x0f) == 0x0f;
+        flag.auxCarry = registerValue > 0x9;
         flag.parity = checkParity(registerValue, 8);
         return registerValue;
     }
@@ -228,9 +228,8 @@ public class CPU {
     private void add(int registerValue) {
         // S Z A P C
         int x = registerValue + register.A;
-        flag.carry = (x & 0xf00) != 0; // 0x100
+        flag.carry = (x & 0xf00) != 0;
         auxCarry8(register.A, registerValue);
-        //flag.auxCarry = ((x ^ register.A ^ registerValue) & 0xf0) != 0; // 0xf0
         register.A += registerValue;
         register.A &= 0xff;
         sign8(register.A);
@@ -240,7 +239,8 @@ public class CPU {
 
     private void adc(int registerValue) {
         // S Z A C P
-        int x = register.A + registerValue + (flag.carry ? 1 : 0);
+        int x = register.A + registerValue;
+        x += flag.carry ? 1 : 0;
 
         if(flag.carry) {
             flag.auxCarry = ((x & 0xf) + (registerValue & 0xf)) >= 0xf;
@@ -257,10 +257,8 @@ public class CPU {
     private void sub(int registerValue) {
         // S Z A C P
         int x = register.A - registerValue;
-
         flag.carry = (((x & 0xff00) >= register.A) && (registerValue > 0));
         auxCarry8(register.A, registerValue);
-        //flag.auxCarry = ((register.A ^ x ^ registerValue) & 0xf0) != 0;//0x10(registerValue & 0xf) <= (register.A & 0xf);
         sign8(x);
         zero(x);
         parity8(x);
@@ -274,12 +272,12 @@ public class CPU {
         if(flag.carry) {
             x -= 1;
         }
-        /*if(flag.carry) {
+        if(flag.carry) {
             flag.auxCarry = (registerValue & 0xf) < (register.A & 0xf);
         } else {
             flag.auxCarry = (registerValue & 0xf) <= (register.A & 0xf);
-        }*/
-        auxCarry8(register.A, registerValue);
+        }
+        //auxCarry8(register.A, registerValue);
         flag.carry = ((x & 0xff) >= register.A) && ((registerValue > 0) | flag.carry);
 
         x &= 0xff; // <256
@@ -291,7 +289,7 @@ public class CPU {
 
     private void ana(int registerValue) {
         // S Z A P C
-        //flag.auxCarry = (registerValue & 0xf) <= (register.A & 0xf);
+        flag.auxCarry = (registerValue & 0xf) <= (register.A & 0xf);
         flag.carry = false;
         register.A &= registerValue;
         sign8(register.A);
@@ -301,17 +299,17 @@ public class CPU {
 
     private void xra(int registerValue) {
         // S Z A P C
-        //auxCarry8(register.A, registerValue);
         register.A ^= registerValue;
         sign8(register.A);
         zero(register.A);
+        auxCarry8(register.A, registerValue);
         parity8(register.A);
         flag.carry = false;
     }
 
     private void ora(int registerValue) {
         // S Z A P C
-        //auxCarry8(register.A, registerValue);
+        auxCarry8(register.A, registerValue);
         register.A |= registerValue;
         sign8(register.A);
         zero(register.A);
@@ -322,7 +320,7 @@ public class CPU {
     private void cmp(int registerValue) {
         // S Z A P C
         int x = register.A - registerValue;
-        flag.carry = (x & 0xf00) != 0; //0x100
+        flag.carry = (x & 0xf00) != 0;
         auxCarry8(register.A, registerValue);
         sign8(x);
         zero(x);

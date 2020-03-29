@@ -1,16 +1,15 @@
 package GUI;
 
 import Core.CPU;
-import Core.CPUStateTest;
 
 public class Timing implements Runnable {
     boolean running = false;
     CPU cpu;
     VideoArea videoArea;
-    double fps = 59.54;
+    double fps = 60;
     Thread thread;
     //CPUStateTest test;
-    final int vblankHalfCycles = 32768;
+    final int vblankHalfCycles = 32000; // time between half frames
 
     public Timing(CPU cpuUsed, VideoArea videoAreaUsed) {
         cpu = cpuUsed;
@@ -20,17 +19,17 @@ public class Timing implements Runnable {
 
     @Override
     public void run() {
-        long timeNext = System.nanoTime();
-        long timeFrame = (long) (1000000000.0 / fps);
+        long timeNext = System.currentTimeMillis();
+        long timeFrame = (long) (1000 / fps);
 
         while(running) {
             do {
-                update();
+                executeOneFrame();
                 timeNext += timeFrame;
-            } while(System.nanoTime() - timeNext >= timeFrame);
+            } while(System.currentTimeMillis() - timeNext >= timeFrame);
 
             videoArea.paintImmediately(videoArea.getVisibleRect());
-            long sleepTime = (timeNext - System.nanoTime()) / 1000000;
+            long sleepTime = (timeNext - System.currentTimeMillis()) / 100;
             if(sleepTime > 0) {
                 try {
                     Thread.sleep(sleepTime);
@@ -41,7 +40,7 @@ public class Timing implements Runnable {
         }
     }
 
-    public void update() {
+    public void executeOneFrame() {
         int cycles = 0;
         while(cycles < vblankHalfCycles) {
             cycles += cpu.stepExecute();

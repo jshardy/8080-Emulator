@@ -68,6 +68,7 @@ public class MainWindow extends JFrame {
             videoArea.setVideoMemory(memory);
             cpuManager = new Timing(cpu, videoArea);
             cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
+
             cpuManager.start();
         });
         /*

@@ -27,7 +27,7 @@ public class SpaceInvadersMemory implements Memory {
 
     public void loadMemory(byte [] mem) {
         for(int i = 0; i < mem.length; i++) {
-            memory[i] = mem[i] & 0xff;
+            memory[i] = mem[i] & 0xff; // keep it 255 and below
         }
     }
 
@@ -44,10 +44,11 @@ public class SpaceInvadersMemory implements Memory {
     public void writeByte(int address, int value) throws IllegalAccessError {
         // ROM Area: 0-0x1fff
         // Video Area: 2400-0x3fff
-        if(address >= VRAM && address < 0x4000) {
+        if(address >= VRAM && address < MEMORY_SIZE) {
             setPixel(address, value);
         } else {
-            address = 0x2000 | (address & 0x3ff);
+
+            address = 0x2000 | (address & 0x03ff);
         }
         memory[address] = value;
         //printMemoryAccess(address, true);
@@ -77,11 +78,11 @@ public class SpaceInvadersMemory implements Memory {
         y = (HEIGHT - 8) - (y << 3); // because image is sideways in real machine
 
         int currentColor = WHITE;
-        if(y > 31 && y < 64) {
+        if(y > 31 && y <= 63) {
             currentColor = RED;
-        } else if(y > 183 && y < 240) {
+        } else if(y > 183 && y <= 239) {
             currentColor = GREEN;
-        } else if(y > 239 && x > 15 && x < 134) {
+        } else if(y >= 239 && x >= 15 && x < 135) {
             currentColor = GREEN;
         }
 
