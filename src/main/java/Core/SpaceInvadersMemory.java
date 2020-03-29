@@ -13,9 +13,9 @@ public class SpaceInvadersMemory implements Memory {
     public final int WIDTH = 224;
     public final int VRAM = 0x2400;
 
-    public static final int WHITE = 0xfffffe;
-    public static final int RED = 0xfe0000;
-    public static final int GREEN = 0x00fe00;
+    public static final int WHITE = 0xffeffe;
+    public static final int RED = 0xfe0e00;
+    public static final int GREEN = 0x00fe0a;
     public static final int BLACK = 0x000000;
 
     private BufferedImage db = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
@@ -44,7 +44,7 @@ public class SpaceInvadersMemory implements Memory {
     public void writeByte(int address, int value) throws IllegalAccessError {
         // ROM Area: 0-0x1fff
         // Video Area: 2400-0x3fff
-        if(address >= 0x2400 && address < 0x4000) {
+        if(address >= VRAM && address < 0x4000) {
             setPixel(address, value);
         } else {
             address = 0x2000 | (address & 0x3ff);
@@ -71,10 +71,10 @@ public class SpaceInvadersMemory implements Memory {
     // setPixel(address, on/off)
     // Sets a pixel on or off
     public void setPixel(int address, int value) {
-        int offset = address - 0x2400;
+        int offset = address - VRAM;
         int x = offset >>> 5; // upper 5 bits are start of x
         int y = (offset & 0x1f); // lower 5 bits are start of y
-        y = 248 - (y << 3); // because image is sideways in real machine
+        y = (HEIGHT - 8) - (y << 3); // because image is sideways in real machine
 
         int currentColor = WHITE;
         if(y > 31 && y < 64) {
@@ -89,13 +89,12 @@ public class SpaceInvadersMemory implements Memory {
         int currentLocation = (y * WIDTH) + x;
         for(int i = 7; i >= 0; i--) {
             // Each bit represents on or off pixel
-            // 1 bit = 8 pixels
+            // 1 byte = 8 pixels
             if((value & (1 << i)) != 0) {
                 rawPixelData[currentLocation] = currentColor;
             } else {
                 rawPixelData[currentLocation] = BLACK;
             }
-            // drawing y axis first
             // Remember original Space Invaders
             // screen was sideways
             currentLocation += WIDTH;

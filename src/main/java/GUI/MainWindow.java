@@ -18,7 +18,7 @@ public class MainWindow extends JFrame {
     CPU cpu;
     Memory memory;
     SpaceInvadersIO io = new SpaceInvadersIO();
-    Timing cpu_manager;
+    Timing cpuManager;
     CPUThreadMonitor cpuThreadMonitor;
 
     private byte[] memoryByteArray;
@@ -39,32 +39,36 @@ public class MainWindow extends JFrame {
             cpu.stepExecute();
             debugArea.Updated(cpu.previousState);
             videoArea.paintImmediately(videoArea.getVisibleRect());
+            mainWindow.requestFocus();
         });
 
         debugArea.setPlayActionListener(actionEvent -> {
             if(debugArea.getStepCheckBox()) {
-                cpu_manager.stop();
+                cpuManager.stop();
                 cpu.stepExecute();
                 debugArea.Updated(cpu.previousState);
                 videoArea.paintImmediately(videoArea.getVisibleRect());
             } else {
                 cpuThreadMonitor.start();
-                cpu_manager.start();
+                cpuManager.start();
             }
+            mainWindow.requestFocus();
         });
 
         debugArea.setStopActionListener(actionEvent -> {
-            cpu_manager.stop();
+            cpuManager.stop();
+            mainWindow.requestFocus();
         });
 
         debugArea.setRestartActionListener(actionEvent -> {
-            cpu_manager.stop();
+            cpuManager.stop();
             memory = new SpaceInvadersMemory(memoryByteArray);
             io = new SpaceInvadersIO();
             cpu = new CPU(memory, io);
             videoArea.setVideoMemory(memory);
-            cpu_manager = new Timing(cpu, videoArea);
-            cpu_manager.start();
+            cpuManager = new Timing(cpu, videoArea);
+            cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
+            cpuManager.start();
         });
         /*
         JFileChooser jf = new JFileChooser();
@@ -75,7 +79,6 @@ public class MainWindow extends JFrame {
         //memoryByteArray = SettingsFile.LoadROM(filename);
         memory = new SpaceInvadersMemory(memoryByteArray);
         cpu = new CPU(memory, io);
-        cpu.setCPUChanged(debugArea);
         videoArea = new VideoArea(cpu.getMemory());
 
         cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
@@ -83,24 +86,29 @@ public class MainWindow extends JFrame {
         add(videoArea);
         setVisible(true);
 
-        cpu_manager = new Timing(cpu, videoArea);
+        cpuManager = new Timing(cpu, videoArea);
         this.addKeyListener(new keyInput());
         this.addFocusListener(new FocusInput());
+        mnuAction.toggleDebugBarVisible();
     }
 
     public void loadRom(String filename) {
         memoryByteArray = SettingsFile.LoadROM(filename);
-        memory = new MemoryDefault(memoryByteArray);
-        // TODO: write a default IN/OUT system
+        //memory = new MemoryDefault(memoryByteArray);
+        memory = new SpaceInvadersMemory(memoryByteArray);
         io = new SpaceInvadersIO();
         cpu = new CPU(memory, io);
+        cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
+        videoArea = new VideoArea(cpu.getMemory());
+        cpu.setCPUChanged(debugArea);
+        cpuManager = new Timing(cpu, videoArea);
     }
 
     public class keyInput implements KeyListener {
         Boolean started = false;
         @Override
         public void keyTyped(KeyEvent keyEvent) {
-
+            // Not using, but must be here
         }
 
         @Override
@@ -117,6 +125,8 @@ public class MainWindow extends JFrame {
                     io.getPort1().setBit(6, true);
                     break;
                 default:
+                    // There are two starts in Space Invaders
+                    // I've set them up to be "any" key
                     if(started) {
                         io.getPort1().setBit(2, true);
                     }
@@ -149,14 +159,13 @@ public class MainWindow extends JFrame {
     public class FocusInput implements FocusListener {
         @Override
         public void focusGained(FocusEvent focusEvent) {
-
+            // has to be here, but I'm not using it.
         }
 
         @Override
         public void focusLost(FocusEvent focusEvent) {
-            if(focusEvent.getCause() != FocusEvent.Cause.ACTIVATION) {
-                mainWindow.requestFocus();
-            }
+            // Don't lose focus, then we lose keyboard input
+            mainWindow.requestFocus();
         }
     }
 
@@ -189,26 +198,26 @@ public class MainWindow extends JFrame {
                     break;
                 case "Play/Pause":
                     if(debugArea.getStepCheckBox()) {
-                        cpu_manager.stop();
+                        cpuManager.stop();
                         cpu.stepExecute();
                         debugArea.Updated(cpu.previousState);
                         videoArea.paintImmediately(videoArea.getVisibleRect());
                     } else {
-                        cpu_manager.start();
+                        cpuManager.start();
                         cpuThreadMonitor.start();
                     }
                     break;
                 case "Stop":
-                    cpu_manager.stop();
+                    cpuManager.stop();
                     break;
                 case "Restart":
-                    cpu_manager.stop();
+                    cpuManager.stop();
                     memory = new SpaceInvadersMemory(memoryByteArray);
                     io = new SpaceInvadersIO();
                     cpu = new CPU(memory, io);
                     videoArea.setVideoMemory(memory);
-                    cpu_manager = new Timing(cpu, videoArea);
-                    cpu_manager.start();
+                    cpuManager = new Timing(cpu, videoArea);
+                    cpuManager.start();
                     break;
                 case "Debug Bar":
                     toggleDebugBarVisible();
@@ -231,14 +240,13 @@ public class MainWindow extends JFrame {
                 Dimension d = mainWindow.getSize();
                 d.width -= 135;
                 mainWindow.setSize(d);
-            }
-            else if(debugVisible)
-            {
+            } else {
                 previous_size = temp_prev_size;
                 mainWindow.add(videoArea);
             }
 
             mainWindow.repaint();
+            mainWindow.requestFocus();
             debugVisible = !debugVisible;
         }
     }

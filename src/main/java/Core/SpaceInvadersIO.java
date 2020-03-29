@@ -19,6 +19,7 @@ public class SpaceInvadersIO implements InputOutput {
     public Port getPort1() { return port1; }
     public Port getPort2() { return port2; }
     public Port getPort3() { return port3; }
+
     static long timeMillis = System.currentTimeMillis();
 
     public SpaceInvadersIO() {
@@ -27,8 +28,7 @@ public class SpaceInvadersIO implements InputOutput {
     }
 
     @Override
-    public void out(int data, int registerA) {
-        // data has the device # in it.
+    public void out(int device, int registerA) {
         /*
         *The game will play fine without sound files*
         The sound chip for Space Invaders is analog, because of this
@@ -42,16 +42,16 @@ public class SpaceInvadersIO implements InputOutput {
         second, so that it doesn't sound like it's shooting over and over
         again.
          */
-        switch(data) {
+        switch(device) {
             case 2:
+                // Video shift register
                 shiftOffset = 8 - registerA;
                 break;
             case 3:
                 // Sound
                 switch (registerA & 0x1f) {
                     case 0x01:
-                        sounds[0].setLoop(20);
-                        sounds[0].play();
+                        sounds[0].setLoop(15);
                         break;
                     case 0x02:
                         if((System.currentTimeMillis() - timeMillis) > 1000) {
@@ -71,6 +71,7 @@ public class SpaceInvadersIO implements InputOutput {
                 }
                 break;
             case 4:
+                // Video shift register
                 shiftRegister >>>= 8;
                 shiftRegister |= registerA << 8;
                 break;
@@ -100,13 +101,13 @@ public class SpaceInvadersIO implements InputOutput {
     }
 
     @Override
-    public int in(int data) {
+    public int in(int device) {
         int registerA = 0;
 
-        switch(data) {
+        switch(device) {
             case 1:
                 registerA = port1.getPort();
-                port1.setPort(port1.getPort() & 0xfe); // turn everything but first bit on
+                port1.setPort(port1.getPort() & 0xfe); // turn everything but the first bit on
                 break;
             case 2:
                 registerA = port2.getPort();

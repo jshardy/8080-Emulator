@@ -30,6 +30,7 @@ public class Sound implements LineListener {
         // only play if its not already playing
         if(isLoaded && !isPlaying) {
             System.out.println("Sound " + index + " playing");
+            isPlaying = true;
             clip.setFramePosition(0); // reset start time
             clip.start();
         }
