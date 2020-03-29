@@ -5,10 +5,10 @@ Author: Joshua Hardy
 
 Emulator functionally plays Space Invaders without sound.
 
-This is one of my first large projects, I learned a lot.
+This is one of my first large projects. I learned a lot.
 I chose the 8080 emulator because I wanted to show the depth
-of my knowledge gained from school. From the basics to like
-bit banging to more advanced OOP concepts.
+of my knowledge gained from school, from the basics to bit
+banging to more advanced OOP concepts.
 
 What I learned:
 -I can now count in hex/binary in my head, something I could
