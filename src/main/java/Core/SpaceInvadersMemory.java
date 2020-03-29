@@ -44,6 +44,11 @@ public class SpaceInvadersMemory implements Memory {
     public void writeByte(int address, int value) throws IllegalAccessError {
         // ROM Area: 0-0x1fff
         // Video Area: 2400-0x3fff
+        if(address >= 0x0000 && address <= 0x1fff) {
+            System.out.println("BUG: Writing to ROM: " + address);
+            return; // ROM do nothing
+        }
+
         if(address >= VRAM && address < MEMORY_SIZE) {
             setPixel(address, value);
         } else {
