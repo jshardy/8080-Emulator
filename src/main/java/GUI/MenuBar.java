@@ -6,33 +6,13 @@ import java.awt.event.ActionListener;
 
 public class MenuBar extends JMenuBar {
     public MenuBar(ActionListener newAction) {
-        JMenu virtualMachine = new JMenu("Virtual Machine");
-        JMenuItem createVM = new JMenuItem("Create VM");
-        createVM.addActionListener(newAction);
-
-        JMenuItem openVM = new JMenuItem("Open VM");
-        openVM.addActionListener(newAction);
-
-        JMenuItem saveVM = new JMenuItem("Save VM");
-        saveVM.addActionListener(newAction);
-
-        JMenuItem saveAsVM = new JMenuItem("Save VM As");
-        saveAsVM.addActionListener(newAction);
-
-        virtualMachine.add(createVM);
-        virtualMachine.add(openVM);
-        virtualMachine.addSeparator();
-        virtualMachine.add(saveVM);
-        virtualMachine.add(saveAsVM);
-        //add(virtualMachine);
-
         // Preferences
         JMenu preferences = new JMenu("Virtual Machine");
-        JMenuItem rom = new JMenuItem("Rom...");
-        rom.addActionListener(newAction);
-        preferences.add(rom);
+        JMenuItem loadGame = new JMenuItem("Load Game...");
+        loadGame.addActionListener(newAction);
+        preferences.add(loadGame);
 
-        JMenuItem disk = new JMenuItem("Disk...");
+        JMenuItem disk = new JMenuItem("Save Game...");
         disk.addActionListener(newAction);
         preferences.add(disk);
 

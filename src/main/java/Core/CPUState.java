@@ -2,7 +2,7 @@ package Core;
 
 import Utilities.Utils;
 
-public class CPUState {
+public class CPUState implements java.io.Serializable {
     public int A;
     public int B;
     public int C;

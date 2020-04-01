@@ -1,10 +1,18 @@
 package Core;
 
-public class Port {
+public class Port implements java.io.Serializable {
     boolean[] bits = new boolean[8];
 
-    public boolean setBit(int bit, boolean value) {
-        return bits[bit] = value;
+    public Port() {
+
+    }
+
+    public Port(int value) {
+        setPort(value);
+    }
+
+    public void setBit(int bit, boolean value) {
+        bits[bit] = value;
     }
 
     public boolean getBit(int bit) {

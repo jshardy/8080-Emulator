@@ -3,8 +3,12 @@ package GUI;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 
 import Core.*;
+import Main.SerializeState;
 import Main.SettingsFile;
 
 public class MainWindow extends JFrame {
@@ -21,6 +25,7 @@ public class MainWindow extends JFrame {
     Timing cpuManager;
     CPUThreadMonitor cpuThreadMonitor;
 
+    private boolean fromSavedGame = false;
     private byte[] memoryByteArray;
 
     public MainWindow() {
@@ -45,6 +50,7 @@ public class MainWindow extends JFrame {
         debugArea.setPlayActionListener(actionEvent -> {
             if(debugArea.getStepCheckBox()) {
                 cpuManager.stop();
+                cpuThreadMonitor.stop();
                 cpu.stepExecute();
                 debugArea.Updated(cpu.previousState);
                 videoArea.paintImmediately(videoArea.getVisibleRect());
@@ -57,11 +63,13 @@ public class MainWindow extends JFrame {
 
         debugArea.setStopActionListener(actionEvent -> {
             cpuManager.stop();
+            cpuThreadMonitor.stop();
             mainWindow.requestFocus();
         });
 
         debugArea.setRestartActionListener(actionEvent -> {
             cpuManager.stop();
+            cpuThreadMonitor.stop();
             memory = new SpaceInvadersMemory(memoryByteArray);
             io = new SpaceInvadersIO();
             cpu = new CPU(memory, io);
@@ -69,6 +77,7 @@ public class MainWindow extends JFrame {
             cpuManager = new Timing(cpu, videoArea);
             cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
 
+            cpuThreadMonitor.start();
             cpuManager.start();
         });
         /*
@@ -76,7 +85,7 @@ public class MainWindow extends JFrame {
         int retVal = jf.showOpenDialog(MainWindow.this);
         String filename = jf.getSelectedFile().toString();
         */
-        memoryByteArray = SettingsFile.LoadROM("./src/roms/space_invaders.rom");
+        memoryByteArray = SettingsFile.loadROM("./src/roms/space_invaders.rom");
         //memoryByteArray = SettingsFile.LoadROM(filename);
         memory = new SpaceInvadersMemory(memoryByteArray);
         cpu = new CPU(memory, io);
@@ -94,14 +103,13 @@ public class MainWindow extends JFrame {
     }
 
     public void loadRom(String filename) {
-        memoryByteArray = SettingsFile.LoadROM(filename);
+        memoryByteArray = SettingsFile.loadROM(filename);
         //memory = new MemoryDefault(memoryByteArray);
         memory = new SpaceInvadersMemory(memoryByteArray);
         io = new SpaceInvadersIO();
         cpu = new CPU(memory, io);
         cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
         videoArea = new VideoArea(cpu.getMemory());
-        cpu.setCPUChanged(debugArea);
         cpuManager = new Timing(cpu, videoArea);
     }
 
@@ -125,16 +133,33 @@ public class MainWindow extends JFrame {
                 case KeyEvent.VK_RIGHT:
                     io.getPort1().setBit(6, true);
                     break;
+                case KeyEvent.VK_C:
+                    io.getPort1().setBit(0, true);
+                    break;
+                case KeyEvent.VK_L:
+                    // Add lives via changing variable.
+                    int lives = memory.readByte(0x21ff);
+                    memory.writeByte(0x21ff, (++lives) & 0xff); // add lives
+                    break;
+                case KeyEvent.VK_ESCAPE:
+                    memory.writeByte(0x20f1, 1);
+                    memory.writeByte(0x20f2, 20);
+                    memory.writeByte(0x20f3, 20);
                 default:
-                    // There are two starts in Space Invaders
+                    // There are two starts in Space Invaders - insert quarter, and press p1 start
                     // I've set them up to be "any" key
-                    if(started) {
-                        io.getPort1().setBit(2, true);
-                    }
 
-                    if(!started) {
-                        io.getPort1().setPort(0x1);
-                        io.getPort2().setPort(0x0);
+                    if(!fromSavedGame) {
+                        if (started) {
+                            io.getPort1().setBit(2, true);
+                        }
+
+                        if (!started) {
+                            io.getPort1().setPort(0x1);
+                            io.getPort2().setPort(0x0);
+                            started = true;
+                        }
+                    } else {
                         started = true;
                     }
                     break;
@@ -153,6 +178,9 @@ public class MainWindow extends JFrame {
                 case KeyEvent.VK_RIGHT:
                     io.getPort1().setBit(6, false);
                     break;
+                case KeyEvent.VK_C:
+                    io.getPort1().setBit(0, false);
+                    break;
             }
         }
     }
@@ -166,7 +194,9 @@ public class MainWindow extends JFrame {
         @Override
         public void focusLost(FocusEvent focusEvent) {
             // Don't lose focus, then we lose keyboard input
-            mainWindow.requestFocus();
+            if(focusEvent.getCause() != FocusEvent.Cause.UNEXPECTED) {
+                mainWindow.requestFocus();
+            }
         }
     }
 
@@ -176,22 +206,71 @@ public class MainWindow extends JFrame {
 
         @Override
         public void actionPerformed(ActionEvent actionEvent) {
+            String filename;
+            int retVal;
+            JFileChooser jf = new JFileChooser();
+
             switch(actionEvent.getActionCommand()) {
-                case "Create VM":
+                case "Load Game...":
+                    cpuManager.stop();
+                    cpuThreadMonitor.stop();
+                    fromSavedGame = true;
+
+                    retVal = jf.showOpenDialog(MainWindow.this);
+                    filename = jf.getSelectedFile().toString();
+
+                    // Get just the name, remove the dot extension
+                    int index = filename.lastIndexOf('.');
+                    filename = filename.substring(0, index);
+
+                    cpu = SerializeState.loadCPU(filename + ".cpu");
+                    //io = SerializeState.loadIO(filename + ".io");
+                    //memory = SerializeState.loadMemory(filename + ".mem");
+                    io = (SpaceInvadersIO) cpu.getInputOutput();
+                    memory = (SpaceInvadersMemory) cpu.getMemory();
+
+                    //cpu.setInputOutput(io);
+                    //cpu.setMemory(memory);
+                    videoArea.setVideoMemory(memory);
+                    cpuManager = new Timing(cpu, videoArea);
+                    cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
+                    debugArea.Updated(cpu.previousState);
+                    /*
+                    try {
+                        memory = new SpaceInvadersMemory(SettingsFile.loadMemory(new FileInputStream(new File(filename + ".mem"))));
+                        io = SettingsFile.loadIO(new FileInputStream(new File(filename + ".io")));
+                        cpu = SettingsFile.loadCPU(new FileInputStream(new File(filename + ".reg")), memory, io);
+                        videoArea.setVideoMemory(memory);
+                        cpuManager = new Timing(cpu, videoArea);
+                        cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
+                        debugArea.Updated(cpu.previousState);
+                        //cpuThreadMonitor.start();
+                        //cpuManager.start();
+                    } catch (FileNotFoundException e) {
+                        System.out.println("File not found - mnuAction");
+                    }
+                    */
                     break;
-                case "Open VM":
-                    break;
-                case "Save VM":
-                    break;
-                case "Save VM As":
+                case "Save Game...":
+                    cpuManager.stop();
+                    cpuThreadMonitor.stop();
+
+                    retVal = jf.showSaveDialog(MainWindow.this);
+                    filename = jf.getSelectedFile().toString();
+
+                    SerializeState.saveCPU(filename + ".cpu", cpu);
+                    //SerializeState.saveMemory(filename + ".mem", memory);
+                    //SerializeState.saveIO(filename + ".io", io);
+
+                    //SettingsFile.saveState(filename, memory, cpu, io);
                     break;
                 case "Exit":
                     System.exit(0);
                     break;
                 case "Rom...":
-                    JFileChooser jf = new JFileChooser();
-                    int retVal = jf.showOpenDialog(MainWindow.this);
-                    String filename = jf.getSelectedFile().toString();
+                    fromSavedGame = false;
+                    retVal = jf.showOpenDialog(MainWindow.this);
+                    filename = jf.getSelectedFile().toString();
                     loadRom(filename);
                     break;
                 case "Disk...":

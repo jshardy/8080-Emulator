@@ -22,6 +22,7 @@ public class Sound implements LineListener {
                 isLoaded = true;
             } catch(Exception e) {
                 System.out.println("Sound file not working: " + filename);
+                e.printStackTrace();
             }
     }
 

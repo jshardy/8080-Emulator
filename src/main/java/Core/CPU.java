@@ -1,10 +1,17 @@
 package Core;
 
 import Utilities.Utils.nString;
+
+import java.io.IOException;
 import java.util.concurrent.Semaphore;
 
-public class CPU {
-    private class Registers {
+public class CPU implements java.io.Serializable {
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        cpuBusy = new Semaphore(1);
+    }
+
+    private class Registers implements java.io.Serializable {
         public int B; // 0
         public int C; // 1
         public int D; // 2
@@ -42,7 +49,7 @@ public class CPU {
         }
     }
 
-    private class Flags {
+    private class Flags implements java.io.Serializable {
         public boolean carry;
         public boolean zero;
         public boolean sign;
@@ -61,12 +68,14 @@ public class CPU {
             p.setBit(7, sign);
             return p.getPort();
         }
+
         public void setPSW(int value) {
-            carry = (value & 0x01) > 0;
-            parity = (value & 0x04) > 0;
-            auxCarry = (value & 0x10) > 0;
-            zero = (value & 0x40) > 0;
-            sign = (value & 0x80) > 0;
+            Port p = new Port(value);
+            carry = p.getBit(0);
+            parity = p.getBit(2);
+            auxCarry = p.getBit(4);
+            zero = p.getBit(6);
+            sign = p.getBit(7);
         }
     }
 
@@ -75,10 +84,6 @@ public class CPU {
     public CPUState previousState;
     public InputOutput io;
     private Flags flag = new Flags();
-    private Port port1 = new Port();
-    private Port port2 = new Port();
-    private int shiftRegister = 0;
-    private int shiftOffset = 0;
     private String currentInstruction;
     private int PC = 0;
     private int oldPC = 0;
@@ -86,9 +91,8 @@ public class CPU {
     private int SP = 0;
     private boolean interrupts = false;
     private boolean halt = false;
-    private CPUChanged changedCallback;
 
-    public Semaphore cpuBusy = new Semaphore(1);
+    public transient Semaphore cpuBusy = new Semaphore(1);
 
     public CPU(Memory mem, InputOutput inout) {
         memory = mem;
@@ -96,38 +100,55 @@ public class CPU {
         previousState = new CPUState(this);
     }
 
-    public void setCPUChanged(CPUChanged callback) {
-        changedCallback = callback;
-    }
-
     public void setInputOutput(InputOutput inputOutput) {
         io = inputOutput;
     }
-
+    public InputOutput getInputOutput() { return io; }
+    public void setMemory(Memory mem) { memory = mem; }
     public Memory getMemory() {
         return memory;
     }
 
     public int getPC() { return PC; }
+    public void setPC(int newPC) { PC = newPC; }
     public int getCurrentInstructionAddress() { return oldPC; }
     public int getSP() { return SP; }
+    public void setSP(int newSP) { SP = newSP; }
     public int getA() { return register.A; }
+    public void setA(int newA) { register.A = newA; }
     public int getB() { return register.B; }
+    public void setB(int newB) { register.B = newB; }
     public int getC() { return register.C; }
+    public void setC(int newC) { register.C = newC; }
     public int getD() { return register.D; }
+    public void setD(int newD) { register.D = newD; }
     public int getE() { return register.E; }
+    public void setE(int newE) { register.E = newE; }
     public int getH() { return register.H; }
+    public void setH(int newH) { register.H = newH; }
     public int getL() { return register.L; }
+    public void setL(int newL) { register.L = newL; }
     public int getBC() { return register.BC(); }
+    public void setBC(int newBC) { register.BC(newBC); }
     public int getDE() { return register.DE(); }
+    public void setDE(int newDE) { register.DE(newDE); }
     public int getHL() { return register.HL(); }
+    public void setHL(int newHL) { register.HL(newHL); }
     public int getPSW() { return flag.getPSW(); }
+    public void setPSW(int value) { flag.setPSW(value); }
+
     public boolean getCarry() { return flag.carry; }
+    public void setCarry(boolean value) { flag.carry = value; }
     public boolean getZero() { return flag.zero; }
+    public void setZero(boolean value) { flag.zero = value; }
     public boolean getSign() { return flag.sign; }
+    public void setSign(boolean value) { flag.sign = value; }
     public boolean getParity() { return flag.parity; }
+    public void setParity(boolean value) { flag.parity = value; }
     public boolean getAuxCarry() { return flag.auxCarry; }
+    public void setAuxCarry(boolean value) { flag.auxCarry = value; }
     public boolean getInterrupts() { return interrupts; }
+    public void setInterrupts(boolean value) { interrupts = value; }
 
     public String getRAW3Byte() {
         StringBuilder sb = new StringBuilder();
@@ -360,7 +381,7 @@ public class CPU {
         return count % 2 == 0;
     }
 
-    public int interrupt(int interrupt_num) {
+    public void interrupt(int interrupt_num) {
         interrupts = false;
 
         SP -= 2;
@@ -392,7 +413,6 @@ public class CPU {
                 PC = 0x0038;
                 break;
         }
-        return 11;
     }
 
     public int stepExecute() {

@@ -31,6 +31,19 @@ public class CPUThreadMonitor implements Runnable {
         if(running) {
             thread = new Thread(this, "CPU Thread Monitor");
             thread.start();
+        } else {
+            cpu.stepExecute();
+            thread = null;
         }
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+    public void stop() {
+        running = false;
+        cpu.cpuBusy.release();
+        thread = null;
     }
 }

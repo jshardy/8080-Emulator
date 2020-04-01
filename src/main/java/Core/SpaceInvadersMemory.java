@@ -3,8 +3,10 @@ package Core;
 import Utilities.Utils;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
+import java.io.IOException;
+import java.util.concurrent.Semaphore;
 
-public class SpaceInvadersMemory implements Memory {
+public class SpaceInvadersMemory implements Memory, java.io.Serializable {
     private boolean debug = false;
     private final int MEMORY_SIZE = 0x4000;
     private int[] memory = new int[MEMORY_SIZE];
@@ -18,8 +20,18 @@ public class SpaceInvadersMemory implements Memory {
     public static final int GREEN = 0x00fe0a;
     public static final int BLACK = 0x000000;
 
-    private BufferedImage db = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+    private transient BufferedImage db = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
     private int[] rawPixelData = ((DataBufferInt) db.getRaster().getDataBuffer()).getData();
+
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        db = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+        rawPixelData = ((DataBufferInt) db.getRaster().getDataBuffer()).getData();
+        // Write method to redraw entire screen via scanning
+        for(int i = VRAM; i < MEMORY_SIZE; i++) {
+            setPixel(i, memory[i]);
+        }
+    }
 
     public SpaceInvadersMemory(byte [] mem) {
         loadMemory(mem);
@@ -46,7 +58,7 @@ public class SpaceInvadersMemory implements Memory {
         // Video Area: 2400-0x3fff
         if(address >= 0x0000 && address <= 0x1fff) {
             System.out.println("BUG: Writing to ROM: " + address);
-            return; // ROM do nothing
+            //return; // ROM do nothing
         }
 
         if(address >= VRAM && address < MEMORY_SIZE) {
@@ -65,7 +77,7 @@ public class SpaceInvadersMemory implements Memory {
 
     public void writeWord(int address, int value) {
         int low = 0xff & value;
-        int high = (value >>> 8) & 0xff;
+        int high = (value >>> 8);
         writeWord(address, low, high);
     }
 

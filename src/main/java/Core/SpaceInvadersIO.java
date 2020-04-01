@@ -1,26 +1,35 @@
 package Core;
 
-public class SpaceInvadersIO implements InputOutput {
+import java.io.IOException;
+import java.util.concurrent.Semaphore;
+
+public class SpaceInvadersIO implements InputOutput, java.io.Serializable {
     private Port port1 = new Port();
     private Port port2 = new Port();
     private Port port3 = new Port();
     private int shiftRegister = 0;
     private int shiftOffset = 0;
     private static final int sound_count = 18;
-    private static String[] soundFiles = new String[sound_count];
-    private Sound[] sounds = new Sound[sound_count];
+    private static transient String[] soundFiles = new String[sound_count];
+    private transient Sound[] sounds;
 
-    public int getShiftRegister() {
-        return shiftRegister;
-    }
+    public int getShiftRegister() { return shiftRegister; }
+    public void setShiftRegister(int value) { shiftRegister = value; }
     public int getShiftOffset() {
         return shiftOffset;
     }
+    public void setShiftOffset(int value) { shiftOffset = value; }
     public Port getPort1() { return port1; }
     public Port getPort2() { return port2; }
     public Port getPort3() { return port3; }
 
-    static long timeMillis = System.currentTimeMillis();
+    static transient long timeMillis = System.currentTimeMillis();
+
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        generateSoundFileNames();
+        loadSounds();
+    }
 
     public SpaceInvadersIO() {
         generateSoundFileNames();
@@ -96,7 +105,7 @@ public class SpaceInvadersIO implements InputOutput {
                 }
                 break;
             case 6:
-                // Debug?
+                // Watchdog debugger hardware
         }
     }
 
@@ -126,6 +135,13 @@ public class SpaceInvadersIO implements InputOutput {
     }
 
     private void loadSounds() {
+        /*
+        There is a known issue with Linux Java and loading too many audio files,
+        so this may error out on loading saved games.
+        The work around for this is to remove sound from SpaceInvaders and put it
+        in the main GUI.
+         */
+        sounds = new Sound[sound_count];
         for(int i = 0; i < sound_count; i++) {
             sounds[i] = new Sound(soundFiles[i]);
         }

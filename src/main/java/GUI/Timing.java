@@ -69,15 +69,6 @@ public class Timing implements Runnable {
         return running;
     }
 
-    public synchronized void pause() {
-        running = false;
-        thread = null;
-    }
-
-    public synchronized void resume() {
-        start();
-    }
-
     public void stop() {
         running = false;
         thread = null;

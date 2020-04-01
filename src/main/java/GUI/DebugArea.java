@@ -294,14 +294,14 @@ public class DebugArea extends JPanel implements CPUChanged {
             // Next instruction 2
             JPanel pc2Panel = new JPanel();
             pc2Panel.setLayout(new GridLayout(1,2));
-            pc2Panel.add(new JLabel("Prev - 1:"));
+            pc2Panel.add(new JLabel("PC - 1:"));
             pc2Panel.add(txtMnemonic2);
             child.add(pc2Panel);
 
             // Next instruction 3
             JPanel pc3Panel = new JPanel();
             pc3Panel.setLayout(new GridLayout(1,2));
-            pc3Panel.add(new JLabel("Prev - 2:"));
+            pc3Panel.add(new JLabel("PC - 2:"));
             pc3Panel.add(txtRAW);
             child.add(pc3Panel);
 
