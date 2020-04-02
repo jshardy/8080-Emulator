@@ -1,7 +1,7 @@
 # 8080-Emulator written in Java.
-This is my Senoir Project @ Oregon Tech
-Professor: Calvin Caldwell
-Author: Joshua Hardy
+This is my Senoir Project @ Oregon Tech<br>
+Professor: Calvin Caldwell<br>
+Author: Joshua Hardy<br>
 
 Emulator functionally plays Space Invaders without sound.
 
@@ -10,22 +10,10 @@ I chose the 8080 emulator because I wanted to show the depth
 of my knowledge gained from school, from the basic bit
 banging to higher level OOP concepts.
 
-How to run:
-    1. Find dump 4 ROM files from an original 8080
-    2. Merge the four files into one file in this order:
-        1. invaders.h
-        2. invader.g
-        3. invaders.f
-        4. invaders.e
-	ex: cat invaders.h > space_invaders.rom
-	    cat invaders.g >> space_invaders.rom
-	    cat invaders.f >> space_invaders.rom
-	    cat invaders.e >> space_invaders.rom
-    3. Put space_invaders.rom into Emulator/src/roms/space_invaders.rom
-    4. *If* wanted, insert sound files into Emulator/src/sounds/*.wav
-    5. Compile with favorite Java IDE and play
-
-TODO: Debug Bar resize is wrong
-TODO: Replace buttons with play/pause, restart, and step
-TODO: Memory display
-TODO: Redo GUI in JavaFX
+How to run:<br>
+    Download the Jarfile and run with java -jar Emulator.jar<br>
+    
+<br>TODO: Debug Bar resize is wrong
+<br>TODO: Replace buttons with play/pause, restart, and step
+<br>TODO: Memory display
+<br>TODO: Redo GUI in JavaFX
