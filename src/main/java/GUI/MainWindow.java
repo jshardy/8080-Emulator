@@ -24,7 +24,7 @@ public class MainWindow extends JFrame {
     SpaceInvadersIO io = new SpaceInvadersIO();
     Timing cpuManager;
     CPUThreadMonitor cpuThreadMonitor;
-
+    private KeyboardFocusManager kbManager;
     private boolean fromSavedGame = false;
     private byte[] memoryByteArray;
 
@@ -44,7 +44,7 @@ public class MainWindow extends JFrame {
             cpu.stepExecute();
             debugArea.Updated(cpu.previousState);
             videoArea.paintImmediately(videoArea.getVisibleRect());
-            mainWindow.requestFocus();
+            requestFocusInWindow();
         });
 
         debugArea.setPlayActionListener(actionEvent -> {
@@ -58,13 +58,13 @@ public class MainWindow extends JFrame {
                 cpuThreadMonitor.start();
                 cpuManager.start();
             }
-            mainWindow.requestFocus();
+            requestFocusInWindow();
         });
 
         debugArea.setStopActionListener(actionEvent -> {
             cpuManager.stop();
             cpuThreadMonitor.stop();
-            mainWindow.requestFocus();
+            requestFocusInWindow();
         });
 
         debugArea.setRestartActionListener(actionEvent -> {
@@ -76,17 +76,12 @@ public class MainWindow extends JFrame {
             videoArea.setVideoMemory(memory);
             cpuManager = new Timing(cpu, videoArea);
             cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
-
             cpuThreadMonitor.start();
             cpuManager.start();
+            requestFocusInWindow();
         });
-        /*
-        JFileChooser jf = new JFileChooser();
-        int retVal = jf.showOpenDialog(MainWindow.this);
-        String filename = jf.getSelectedFile().toString();
-        */
+
         memoryByteArray = SettingsFile.loadROM("./src/roms/space_invaders.rom");
-        //memoryByteArray = SettingsFile.LoadROM(filename);
         memory = new SpaceInvadersMemory(memoryByteArray);
         cpu = new CPU(memory, io);
         videoArea = new VideoArea(cpu.getMemory());
@@ -97,8 +92,12 @@ public class MainWindow extends JFrame {
         setVisible(true);
 
         cpuManager = new Timing(cpu, videoArea);
-        this.addKeyListener(new keyInput());
-        this.addFocusListener(new FocusInput());
+        //this.addKeyListener(new keyInput());
+        //this.addFocusListener(new FocusInput());
+
+        kbManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        kbManager.addKeyEventDispatcher(new keyBoardHook());
+        this.setFocusable(true);
         mnuAction.toggleDebugBarVisible();
     }
 
@@ -113,75 +112,72 @@ public class MainWindow extends JFrame {
         cpuManager = new Timing(cpu, videoArea);
     }
 
-    public class keyInput implements KeyListener {
-        Boolean started = false;
-        @Override
-        public void keyTyped(KeyEvent keyEvent) {
-            // Not using, but must be here
-        }
+    public class keyBoardHook implements KeyEventDispatcher {
+        boolean started = false; // Coin inserted and p1 playing
 
         @Override
-        public void keyPressed(KeyEvent keyEvent) {
-            //System.out.println(keyEvent.getKeyChar());
-            switch(keyEvent.getKeyCode()) {
-                case KeyEvent.VK_SPACE:
-                    io.getPort1().setBit(4, true);
-                    break;
-                case KeyEvent.VK_LEFT:
-                    io.getPort1().setBit(5, true);
-                    break;
-                case KeyEvent.VK_RIGHT:
-                    io.getPort1().setBit(6, true);
-                    break;
-                case KeyEvent.VK_C:
-                    io.getPort1().setBit(0, true);
-                    break;
-                case KeyEvent.VK_L:
-                    // Add lives via changing variable.
-                    int lives = memory.readByte(0x21ff);
-                    memory.writeByte(0x21ff, (++lives) & 0xff); // add lives
-                    break;
-                case KeyEvent.VK_ESCAPE:
-                    memory.writeByte(0x20f1, 1);
-                    memory.writeByte(0x20f2, 20);
-                    memory.writeByte(0x20f3, 20);
-                default:
-                    // There are two starts in Space Invaders - insert quarter, and press p1 start
-                    // I've set them up to be "any" key
+        public boolean dispatchKeyEvent(KeyEvent keyEvent) {
+            if(keyEvent.getID() == KeyEvent.KEY_PRESSED) {
+                switch(keyEvent.getKeyCode()) {
+                    case KeyEvent.VK_SPACE:
+                        io.getPort1().setBit(4, true);
+                        break;
+                    case KeyEvent.VK_LEFT:
+                        io.getPort1().setBit(5, true);
+                        break;
+                    case KeyEvent.VK_RIGHT:
+                        io.getPort1().setBit(6, true);
+                        break;
+                    case KeyEvent.VK_C:
+                        io.getPort1().setBit(0, true);
+                        break;
+                    case KeyEvent.VK_L:
+                        // Add lives via changing variable.
+                        int lives = memory.readByte(0x21ff);
+                        memory.writeByte(0x21ff, (++lives) & 0xff); // add lives
+                        break;
+                    case KeyEvent.VK_ESCAPE:
+                        memory.writeByte(0x20f1, 1);
+                        memory.writeByte(0x20f2, 20);
+                        memory.writeByte(0x20f3, 20);
+                    default:
+                        // There are two starts in Space Invaders - insert quarter, and press p1 start
+                        // I've set them up to be "any" key
 
-                    if(!fromSavedGame) {
-                        if (started) {
-                            io.getPort1().setBit(2, true);
-                        }
+                        if(!fromSavedGame) {
+                            if (started) {
+                                io.getPort1().setBit(2, true);
+                            }
 
-                        if (!started) {
-                            io.getPort1().setPort(0x1);
-                            io.getPort2().setPort(0x0);
+                            if (!started) {
+                                io.getPort1().setPort(0x1);
+                                io.getPort2().setPort(0x0);
+                                started = true;
+                            }
+                        } else {
                             started = true;
                         }
-                    } else {
-                        started = true;
-                    }
-                    break;
+                        break;
+                }
+                return true;
+            } else if(keyEvent.getID() == KeyEvent.KEY_RELEASED) {
+                switch(keyEvent.getKeyCode()) {
+                    case KeyEvent.VK_SPACE:
+                        io.getPort1().setBit(4, false);
+                        break;
+                    case KeyEvent.VK_LEFT:
+                        io.getPort1().setBit(5, false);
+                        break;
+                    case KeyEvent.VK_RIGHT:
+                        io.getPort1().setBit(6, false);
+                        break;
+                    case KeyEvent.VK_C:
+                        io.getPort1().setBit(0, false);
+                        break;
+                }
+                return true;
             }
-        }
-
-        @Override
-        public void keyReleased(KeyEvent keyEvent) {
-            switch(keyEvent.getKeyCode()) {
-                case KeyEvent.VK_SPACE:
-                    io.getPort1().setBit(4, false);
-                    break;
-                case KeyEvent.VK_LEFT:
-                    io.getPort1().setBit(5, false);
-                    break;
-                case KeyEvent.VK_RIGHT:
-                    io.getPort1().setBit(6, false);
-                    break;
-                case KeyEvent.VK_C:
-                    io.getPort1().setBit(0, false);
-                    break;
-            }
+            return false;
         }
     }
 
@@ -217,6 +213,11 @@ public class MainWindow extends JFrame {
                     fromSavedGame = true;
 
                     retVal = jf.showOpenDialog(MainWindow.this);
+                    if(retVal == JFileChooser.CANCEL_OPTION) {
+                        fromSavedGame = false;
+                        return;
+                    }
+
                     filename = jf.getSelectedFile().toString();
 
                     // Get just the name, remove the dot extension
@@ -256,6 +257,9 @@ public class MainWindow extends JFrame {
                     cpuThreadMonitor.stop();
 
                     retVal = jf.showSaveDialog(MainWindow.this);
+                    if(retVal == JFileChooser.CANCEL_OPTION) {
+                        return;
+                    }
                     filename = jf.getSelectedFile().toString();
 
                     SerializeState.saveCPU(filename + ".cpu", cpu);

@@ -27,7 +27,7 @@ public class SpaceInvadersMemory implements Memory, java.io.Serializable {
         in.defaultReadObject();
         db = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
         rawPixelData = ((DataBufferInt) db.getRaster().getDataBuffer()).getData();
-        // Write method to redraw entire screen via scanning
+        // Redraw EVERY pixel
         for(int i = VRAM; i < MEMORY_SIZE; i++) {
             setPixel(i, memory[i]);
         }
@@ -88,6 +88,8 @@ public class SpaceInvadersMemory implements Memory, java.io.Serializable {
 
     // setPixel(address, on/off)
     // Sets a pixel on or off
+    // This method saves CPU cycles, but could just
+    // as easily be done with a constant loop over each pixel each frame.
     public void setPixel(int address, int value) {
         int offset = address - VRAM;
         int x = offset >>> 5; // upper 5 bits are start of x
