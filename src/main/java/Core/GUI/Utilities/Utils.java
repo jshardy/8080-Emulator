@@ -1,4 +1,4 @@
-package Utilities;
+package Core.GUI.Utilities;
 
 public class Utils {
     public static class nString {

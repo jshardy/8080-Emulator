@@ -1,6 +1,6 @@
 package Core;
 
-import Utilities.Utils;
+import Core.GUI.Utilities.Utils;
 
 public class CPUState implements java.io.Serializable {
     public int A;

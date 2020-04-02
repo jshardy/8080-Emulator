@@ -1,10 +1,9 @@
 package Core;
 
-import Utilities.Utils;
+import Core.GUI.Utilities.Utils;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;
-import java.util.concurrent.Semaphore;
 
 public class SpaceInvadersMemory implements Memory, java.io.Serializable {
     private boolean debug = false;

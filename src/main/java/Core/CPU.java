@@ -1,6 +1,6 @@
 package Core;
 
-import Utilities.Utils.nString;
+import Core.GUI.Utilities.Utils.nString;
 
 import java.io.IOException;
 import java.util.concurrent.Semaphore;

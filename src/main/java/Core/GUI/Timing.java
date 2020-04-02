@@ -1,4 +1,4 @@
-package GUI;
+package Core.GUI;
 
 import Core.CPU;
 

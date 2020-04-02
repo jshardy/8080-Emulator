@@ -17,6 +17,10 @@ How to run:
         2. invader.g
         3. invaders.f
         4. invaders.e
+	ex: cat invaders.h > space_invaders.rom
+	    cat invaders.g >> space_invaders.rom
+	    cat invaders.f >> space_invaders.rom
+	    cat invaders.e >> space_invaders.rom
     3. Put space_invaders.rom into Emulator/src/roms/space_invaders.rom
-    4. *If* wanted insert sound files into Emulator/src/sounds/*.wav
+    4. *If* wanted, insert sound files into Emulator/src/sounds/*.wav
     5. Compile with favorite Java IDE and play
