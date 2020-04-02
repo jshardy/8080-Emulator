@@ -181,21 +181,6 @@ public class MainWindow extends JFrame {
         }
     }
 
-    public class FocusInput implements FocusListener {
-        @Override
-        public void focusGained(FocusEvent focusEvent) {
-            // has to be here, but I'm not using it.
-        }
-
-        @Override
-        public void focusLost(FocusEvent focusEvent) {
-            // Don't lose focus, then we lose keyboard input
-            if(focusEvent.getCause() != FocusEvent.Cause.UNEXPECTED) {
-                mainWindow.requestFocus();
-            }
-        }
-    }
-
     class MenuActionListener implements ActionListener {
         private boolean debugVisible = false;
         private Dimension previous_size = new Dimension(800,500);
