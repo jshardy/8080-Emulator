@@ -1,6 +1,6 @@
-package Core.GUI.Main;
+package Main;
 
-import Core.GUI.MainWindow;
+import GUI.MainWindow;
 
 public class Emulator {
     public static void main(String[] args) {

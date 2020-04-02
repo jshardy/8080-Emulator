@@ -139,7 +139,7 @@ public class SpaceInvadersIO implements InputOutput, java.io.Serializable {
         There is a known issue with Linux Java and loading too many audio files,
         so this may error out on loading saved games.
         The work around for this is to remove sound from SpaceInvaders and put it
-        in the main Core.GUI.
+        in the main GUI.
          */
         sounds = new Sound[sound_count];
         for(int i = 0; i < sound_count; i++) {

@@ -1,6 +1,6 @@
 package Core;
 
-import Core.GUI.Utilities.Utils;
+import Utilities.Utils;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;

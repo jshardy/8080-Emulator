@@ -1,12 +1,12 @@
-package Core.GUI;
+package GUI;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 
 import Core.*;
-import Core.GUI.Main.SerializeState;
-import Core.GUI.Main.SettingsFile;
+import Main.SerializeState;
+import Main.SettingsFile;
 
 public class MainWindow extends JFrame {
     JFrame mainWindow = this;

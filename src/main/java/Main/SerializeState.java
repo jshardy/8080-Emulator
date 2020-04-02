@@ -1,4 +1,4 @@
-package Core.GUI.Main;
+package Main;
 
 import Core.CPU;
 import Core.Memory;

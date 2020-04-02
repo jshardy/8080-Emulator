@@ -1,4 +1,4 @@
-package Core.GUI;
+package GUI;
 
 import javax.swing.*;
 import java.awt.event.ActionListener;

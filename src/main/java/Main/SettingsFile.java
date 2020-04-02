@@ -1,4 +1,4 @@
-package Core.GUI.Main;
+package Main;
 
 import Core.*;
 import java.io.*;

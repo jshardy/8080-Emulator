@@ -1,8 +1,8 @@
-package Core.GUI;
+package GUI;
 
 import Core.CPUChanged;
 import Core.CPUState;
-import Core.GUI.Utilities.Utils;
+import Utilities.Utils;
 
 import javax.swing.*;
 import java.awt.*;
