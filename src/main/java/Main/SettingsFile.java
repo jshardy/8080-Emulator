@@ -20,6 +20,22 @@ public class SettingsFile {
         return memBytes;
     }
 
+    public static byte[] loadROM(InputStream file) {
+        byte[] memBytes = new byte[0x4000];
+            try {
+                int i = 0;
+                int data = 0;
+
+                do {
+                    data = file.read();
+                    memBytes[i++] = (byte) (0xff & data);
+                } while(data != -1);
+            } catch (IOException e) {
+                System.out.println("Error reading ROM file: " + e.getMessage());
+            }
+        return memBytes;
+    }
+
     public static void saveState(String StateFile, Memory memory, CPU cpu, SpaceInvadersIO io) {
         try {
             // memory file

@@ -3,6 +3,9 @@ package GUI;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.*;
+import java.net.URISyntaxException;
+import java.net.URL;
 
 import Core.*;
 import Main.SerializeState;
@@ -77,8 +80,10 @@ public class MainWindow extends JFrame {
             cpuManager.start();
             requestFocusInWindow();
         });
+        InputStream inputROM = getClass().getResourceAsStream("/roms/space_invaders.rom");
 
-        memoryByteArray = SettingsFile.loadROM("./src/roms/space_invaders.rom");
+        memoryByteArray = SettingsFile.loadROM(inputROM);
+
         memory = new SpaceInvadersMemory(memoryByteArray);
         cpu = new CPU(memory, io);
         videoArea = new VideoArea(cpu.getMemory());

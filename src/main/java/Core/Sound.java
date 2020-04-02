@@ -1,7 +1,9 @@
 package Core;
 
 import javax.sound.sampled.*;
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.InputStream;
 
 public class Sound implements LineListener {
     static int index_count = 0;
@@ -22,8 +24,21 @@ public class Sound implements LineListener {
                 isLoaded = true;
             } catch(Exception e) {
                 System.out.println("Sound file not working: " + filename);
-                e.printStackTrace();
             }
+    }
+
+    public Sound(InputStream inSound) {
+        try {
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(new BufferedInputStream(inSound));
+            AudioFormat format = audioStream.getFormat();
+            DataLine.Info info = new DataLine.Info(Clip.class, format);
+            clip = (Clip)AudioSystem.getLine(info);
+            clip.addLineListener(this);
+            clip.open(audioStream);
+            isLoaded = true;
+        } catch(Exception e) {
+            System.out.println("Sound file not working: " + inSound);
+        }
     }
 
     public void play() {

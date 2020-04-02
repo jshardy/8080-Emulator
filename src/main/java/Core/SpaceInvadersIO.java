@@ -1,6 +1,13 @@
 package Core;
 
+import Main.SettingsFile;
+
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.concurrent.Semaphore;
 
 public class SpaceInvadersIO implements InputOutput, java.io.Serializable {
@@ -130,7 +137,7 @@ public class SpaceInvadersIO implements InputOutput, java.io.Serializable {
 
     private void generateSoundFileNames() {
         for(int i = 0; i < sound_count; i++) {
-            soundFiles[i] = "./src/sounds/" + i + ".wav";
+            soundFiles[i] = "/sounds/" + i + ".wav";
         }
     }
 
@@ -143,7 +150,11 @@ public class SpaceInvadersIO implements InputOutput, java.io.Serializable {
          */
         sounds = new Sound[sound_count];
         for(int i = 0; i < sound_count; i++) {
-            sounds[i] = new Sound(soundFiles[i]);
+            try {
+                sounds[i] = new Sound(getClass().getResourceAsStream(soundFiles[i]));
+            } catch (Exception e) {
+                System.out.println("Error: Sound file missing - " + soundFiles[i]);
+            }
         }
     }
 }

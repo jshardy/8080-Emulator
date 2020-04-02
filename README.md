@@ -7,8 +7,8 @@ Emulator functionally plays Space Invaders without sound.
 
 This is one of my first large projects. I learned a lot.
 I chose the 8080 emulator because I wanted to show the depth
-of my knowledge gained from school, from the basics C to bit
-banging to more OOP concepts.
+of my knowledge gained from school, from the basic bit
+banging to higher level OOP concepts.
 
 How to run:
     1. Find dump 4 ROM files from an original 8080
@@ -24,3 +24,8 @@ How to run:
     3. Put space_invaders.rom into Emulator/src/roms/space_invaders.rom
     4. *If* wanted, insert sound files into Emulator/src/sounds/*.wav
     5. Compile with favorite Java IDE and play
+
+TODO: Debug Bar resize is wrong
+TODO: Replace buttons with play/pause, restart, and step
+TODO: Memory display
+TODO: Redo GUI in JavaFX
