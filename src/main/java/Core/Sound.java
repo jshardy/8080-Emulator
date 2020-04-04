@@ -5,12 +5,15 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.InputStream;
 
-public class Sound implements LineListener {
+public class Sound implements LineListener, Runnable {
     static int index_count = 0;
     private int index = index_count++;
     private boolean isLoaded = false;
     private boolean isPlaying = false;
     private Clip clip;
+    private Thread thread = null;
+    private boolean running = false;
+    private boolean continuous = false;
 
     public Sound(String filename) {
             File actualFileData = new File(filename);
@@ -53,6 +56,7 @@ public class Sound implements LineListener {
 
     public void setLoop(int loop) {
         if (isLoaded) {
+            continuous = true;
             clip.loop(loop);
         }
     }
@@ -72,6 +76,25 @@ public class Sound implements LineListener {
             isPlaying = true;
         } else if(lineEvent.getType() == LineEvent.Type.STOP) {
             isPlaying = false;
+        }
+    }
+
+    @Override
+    public void run() {
+        if(thread != null) {
+            if(!continuous) {
+                play();
+                thread = null;
+            } else {
+                setLoop(15);
+            }
+        }
+    }
+
+    public void start() {
+        if(thread == null) {
+            thread = new Thread(this, "Sound");
+            thread.start();
         }
     }
 }

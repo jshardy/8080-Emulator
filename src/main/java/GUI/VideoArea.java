@@ -11,8 +11,6 @@ import java.awt.image.BufferedImage;
 
 public class VideoArea extends Canvas {
     Memory memory;
-    int frame_count = 0;
-    static long frames = 0;
     BufferStrategy bs;
     GraphicsEnvironment ge;
     GraphicsDevice gd;
@@ -55,12 +53,8 @@ public class VideoArea extends Canvas {
         bf = ato.filter(memory.getImage(), bf);
 
         g.drawImage(bf, 0, 0, null);
-        g.setColor(Color.red);
-        g.drawString("Frames: " + frames, 20,50);
         if(!getBufferStrategy().contentsLost()) {
             bs.show();
         }
-        Thread.yield();
-        System.out.println("Draw called " + ++frames);
     }
 }
