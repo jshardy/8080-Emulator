@@ -1,0 +1,3 @@
+$GIT_DIR/build/**
+$GIT_DIR/src/sounds/**
+$GIT_DIR/src/roms/**
