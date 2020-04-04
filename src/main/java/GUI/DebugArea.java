@@ -62,8 +62,9 @@ public class DebugArea extends JPanel implements CPUChanged {
     }
 
     public boolean getStepCheckBox() {
-        return optionsPanel.singleStep.isSelected();
+        return optionsPanel.debugCheckbox.isSelected();
     }
+    public void setCheckboxActionListener(ActionListener ac) { optionsPanel.debugCheckbox.addActionListener(ac); }
 
     @Override
     public void Updated(CPUState cpuState) {
@@ -92,7 +93,7 @@ public class DebugArea extends JPanel implements CPUChanged {
         public JButton stop = new JButton("Stop");
         public JButton restart = new JButton("Restart");
         public JButton step = new JButton("Step");
-        public JCheckBox singleStep = new JCheckBox("Single Step");
+        public JCheckBox debugCheckbox = new JCheckBox("Debug live");
 
         public OptionsPanel() {
             setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
@@ -105,7 +106,7 @@ public class DebugArea extends JPanel implements CPUChanged {
             child.add(stop);
             child.add(step);
             child.add(restart);
-            child.add(singleStep);
+            child.add(debugCheckbox);
             add(child);
         }
     }

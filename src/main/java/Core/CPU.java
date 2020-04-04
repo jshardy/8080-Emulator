@@ -91,7 +91,6 @@ public class CPU implements java.io.Serializable {
     private int SP = 0;
     private boolean interrupts = false;
     private boolean halt = false;
-
     public transient Semaphore cpuBusy = new Semaphore(1);
 
     public CPU(Memory mem, InputOutput inout) {
@@ -2925,7 +2924,7 @@ public class CPU implements java.io.Serializable {
         currentInstruction = sb.toString();
         previousState = new CPUState(this);
         cpuBusy.release();
-        //changedCallback.Updated(new CPUState(this));
+
         return cycles;
     }
 }

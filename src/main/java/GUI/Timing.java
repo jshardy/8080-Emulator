@@ -27,11 +27,13 @@ public class Timing implements Runnable {
                 executeOneFrame();
                 timeNext += timeFrame;
             } while(System.currentTimeMillis() - timeNext >= timeFrame);
-
-            videoArea.paintImmediately(videoArea.getVisibleRect());
+            videoArea.draw();
+            //videoArea.paintImmediately(videoArea.getVisibleRect());
+            //videoArea.repaint(videoArea.getVisibleRect());
             long sleepTime = (timeNext - System.currentTimeMillis()) / 100;
             if(sleepTime > 0) {
                 try {
+                    System.out.println("SLEEPING");
                     Thread.sleep(sleepTime);
                 } catch (InterruptedException e) {
                     System.out.println("Spurious wakeup");

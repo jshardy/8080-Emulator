@@ -27,6 +27,7 @@ public class MainWindow extends JFrame {
     private KeyboardFocusManager kbManager;
     private boolean fromSavedGame = false;
     private byte[] memoryByteArray;
+    private boolean debugToggle = false;
 
     public MainWindow() {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -43,7 +44,7 @@ public class MainWindow extends JFrame {
         debugArea.setStepActionListener(actionEvent -> {
             cpu.stepExecute();
             debugArea.Updated(cpu.previousState);
-            videoArea.paintImmediately(videoArea.getVisibleRect());
+            //videoArea.paintImmediately(videoArea.getVisibleRect());
             requestFocusInWindow();
         });
 
@@ -53,9 +54,11 @@ public class MainWindow extends JFrame {
                 cpuThreadMonitor.stop();
                 cpu.stepExecute();
                 debugArea.Updated(cpu.previousState);
-                videoArea.paintImmediately(videoArea.getVisibleRect());
+                //videoArea.paintImmediately(videoArea.getVisibleRect());
             } else {
-                cpuThreadMonitor.start();
+                if(debugToggle) {
+                    cpuThreadMonitor.start();
+                }
                 cpuManager.start();
             }
             requestFocusInWindow();
@@ -76,10 +79,24 @@ public class MainWindow extends JFrame {
             videoArea.setVideoMemory(memory);
             cpuManager = new Timing(cpu, videoArea);
             cpuThreadMonitor = new CPUThreadMonitor(cpu, debugArea);
-            cpuThreadMonitor.start();
+            if(debugToggle) {
+                cpuThreadMonitor.start();
+            }
             cpuManager.start();
             requestFocusInWindow();
         });
+
+        debugArea.setCheckboxActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                if(cpuThreadMonitor.running) {
+                    cpuThreadMonitor.stop();
+                } else {
+                    cpuThreadMonitor.start();
+                }
+            }
+        });
+
         InputStream inputROM = getClass().getResourceAsStream("/roms/space_invaders.rom");
 
         memoryByteArray = SettingsFile.loadROM(inputROM);
@@ -272,10 +289,12 @@ public class MainWindow extends JFrame {
                         cpuManager.stop();
                         cpu.stepExecute();
                         debugArea.Updated(cpu.previousState);
-                        videoArea.paintImmediately(videoArea.getVisibleRect());
+                        //videoArea.paintImmediately(videoArea.getVisibleRect());
                     } else {
                         cpuManager.start();
-                        cpuThreadMonitor.start();
+                        if(debugToggle) {
+                            cpuThreadMonitor.start();
+                        }
                     }
                     break;
                 case "Stop":
