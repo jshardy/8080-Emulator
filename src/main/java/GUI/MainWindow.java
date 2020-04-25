@@ -44,23 +44,15 @@ public class MainWindow extends JFrame {
         debugArea.setStepActionListener(actionEvent -> {
             cpu.stepExecute();
             debugArea.Updated(cpu.previousState);
-            //videoArea.paintImmediately(videoArea.getVisibleRect());
+            videoArea.draw();
             requestFocusInWindow();
         });
 
         debugArea.setPlayActionListener(actionEvent -> {
-            if(debugArea.getStepCheckBox()) {
-                cpuManager.stop();
-                cpuThreadMonitor.stop();
-                cpu.stepExecute();
-                debugArea.Updated(cpu.previousState);
-                //videoArea.paintImmediately(videoArea.getVisibleRect());
-            } else {
-                if(debugToggle) {
-                    cpuThreadMonitor.start();
-                }
-                cpuManager.start();
+            if(debugToggle) {
+                cpuThreadMonitor.start();
             }
+            cpuManager.start();
             requestFocusInWindow();
         });
 
@@ -86,14 +78,11 @@ public class MainWindow extends JFrame {
             requestFocusInWindow();
         });
 
-        debugArea.setCheckboxActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                if(cpuThreadMonitor.running) {
-                    cpuThreadMonitor.stop();
-                } else {
-                    cpuThreadMonitor.start();
-                }
+        debugArea.setCheckboxActionListener(actionEvent -> {
+            if(cpuThreadMonitor.running) {
+                cpuThreadMonitor.stop();
+            } else {
+                cpuThreadMonitor.start();
             }
         });
 

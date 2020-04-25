@@ -54,7 +54,7 @@ public class DebugArea extends JPanel implements CPUChanged {
     }
 
     public void setStopActionListener(ActionListener ac) {
-        optionsPanel.stop.addActionListener(ac);
+        //optionsPanel.stop.addActionListener(ac);
     }
 
     public void setRestartActionListener(ActionListener ac) {
@@ -90,7 +90,7 @@ public class DebugArea extends JPanel implements CPUChanged {
 
     private class OptionsPanel extends JPanel {
         public JButton playPause = new JButton("Play/Pause");
-        public JButton stop = new JButton("Stop");
+        //public JButton stop = new JButton("Stop");
         public JButton restart = new JButton("Restart");
         public JButton step = new JButton("Step");
         public JCheckBox debugCheckbox = new JCheckBox("Debug live");
@@ -103,7 +103,7 @@ public class DebugArea extends JPanel implements CPUChanged {
             setBorder(BorderFactory.createTitledBorder("Options"));
 
             child.add(playPause);
-            child.add(stop);
+            //child.add(stop);
             child.add(step);
             child.add(restart);
             child.add(debugCheckbox);

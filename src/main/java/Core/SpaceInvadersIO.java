@@ -1,14 +1,6 @@
 package Core;
 
-import Main.SettingsFile;
-
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.concurrent.Semaphore;
 
 public class SpaceInvadersIO implements InputOutput, java.io.Serializable {
     private Port port1 = new Port();

@@ -33,7 +33,8 @@ public class MenuBar extends JMenuBar {
         preferences.addSeparator();
         preferences.add(exitVM);
 
-        // Run State
+        // Run State Menu
+        /*
         JMenu runState = new JMenu("Run State");
         JMenuItem playPause = new JMenuItem("Play/Pause");
         playPause.addActionListener(newAction);
@@ -48,12 +49,14 @@ public class MenuBar extends JMenuBar {
         runState.add(stop);
         runState.add(restart);
         add(runState);
+        */
 
+        /*
         JMenu debug = new JMenu("Debug");
         JMenuItem debugBar = new JMenuItem("Debug Bar");
         debugBar.addActionListener(newAction);
         debug.add(debugBar);
-
         add(debug);
+        */
     }
 }
