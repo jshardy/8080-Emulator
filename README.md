@@ -11,6 +11,8 @@ of my knowledge gained from school, from the basic bit banging to higher level O
 How to run:<br>
     Make sure Java runtime is installed
     Download the Emulator.jar and run with java -jar Emulator.jar or double click on Emulator.jar<br>
+    <b>On Windows sometimes the window doesn't properly size itself, resize it, or restart the Emulator</b>
+    Select Play/Pause, use arrow buttons to navigate and space bar to shoot.
     
 <br>TODO: Debug Bar resize is wrong
 <br>TODO: Replace buttons with play/pause, restart, and step
