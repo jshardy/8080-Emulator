@@ -107,6 +107,9 @@ public class MainWindow extends JFrame {
         kbManager.addKeyEventDispatcher(new keyBoardHook());
         this.setFocusable(true);
         mnuAction.toggleDebugBarVisible();
+        this.revalidate();
+        validate();
+        pack();
     }
 
     public void loadRom(String filename) {

@@ -1,3 +1,0 @@
-Manifest-Version: 0.5
-Created-By: Joshua Hardy
-Main-Class: Main.Emulator
