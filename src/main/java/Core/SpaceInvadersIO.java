@@ -35,6 +35,12 @@ public class SpaceInvadersIO implements InputOutput, java.io.Serializable {
         loadSounds();
     }
 
+    public void toggleSound() {
+        for (Sound snd: sounds) {
+            snd.toggleSound();
+        }
+    }
+
     @Override
     public void out(int device, int registerA) {
         /*

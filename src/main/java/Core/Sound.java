@@ -14,6 +14,7 @@ public class Sound implements LineListener, Runnable {
     private Thread thread = null;
     private boolean running = false;
     private boolean continuous = false;
+    private boolean soundOn = true;
 
     public Sound(String filename) {
             File actualFileData = new File(filename);
@@ -47,6 +48,9 @@ public class Sound implements LineListener, Runnable {
     public void play() {
         // Don't play if file not loaded
         // only play if its not already playing
+        if(soundOn == false)
+            return;
+
         if(isLoaded && !isPlaying) {
             isPlaying = true;
             clip.setFramePosition(0); // reset start time
@@ -55,10 +59,17 @@ public class Sound implements LineListener, Runnable {
     }
 
     public void setLoop(int loop) {
+        if(soundOn == false)
+            return;
+
         if (isLoaded) {
             continuous = true;
             clip.loop(loop);
         }
+    }
+
+    public void toggleSound() {
+        soundOn = !soundOn;
     }
 
     public int getIndex() {

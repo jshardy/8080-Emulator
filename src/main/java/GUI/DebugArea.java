@@ -3,6 +3,7 @@ package GUI;
 import Core.CPUChanged;
 import Core.CPUState;
 import Utilities.Utils;
+import jdk.internal.net.http.hpack.HPACK;
 
 import javax.swing.*;
 import java.awt.*;
@@ -65,6 +66,8 @@ public class DebugArea extends JPanel implements CPUChanged {
         return optionsPanel.debugCheckbox.isSelected();
     }
     public void setCheckboxActionListener(ActionListener ac) { optionsPanel.debugCheckbox.addActionListener(ac); }
+    public void setSoundCheckBoxActionListener(ActionListener ac) { optionsPanel.soundCheckbox.addActionListener(ac); }
+
 
     @Override
     public void Updated(CPUState cpuState) {
@@ -94,6 +97,7 @@ public class DebugArea extends JPanel implements CPUChanged {
         public JButton restart = new JButton("Restart");
         public JButton step = new JButton("Step");
         public JCheckBox debugCheckbox = new JCheckBox("Debug live");
+        public JCheckBox soundCheckbox = new JCheckBox("Sound");
 
         public OptionsPanel() {
             setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
@@ -107,6 +111,8 @@ public class DebugArea extends JPanel implements CPUChanged {
             child.add(step);
             child.add(restart);
             child.add(debugCheckbox);
+            soundCheckbox.setSelected(true);
+            child.add(soundCheckbox);
             add(child);
         }
     }

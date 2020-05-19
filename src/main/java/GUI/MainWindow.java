@@ -86,6 +86,10 @@ public class MainWindow extends JFrame {
             }
         });
 
+        debugArea.setSoundCheckBoxActionListener(actionEvent -> {
+            io.toggleSound();
+        });
+
         InputStream inputROM = getClass().getResourceAsStream("/roms/space_invaders.rom");
 
         memoryByteArray = SettingsFile.loadROM(inputROM);
@@ -110,6 +114,12 @@ public class MainWindow extends JFrame {
         this.revalidate();
         validate();
         pack();
+
+        if(debugToggle) {
+            cpuThreadMonitor.start();
+        }
+        cpuManager.start();
+        requestFocusInWindow();
     }
 
     public void loadRom(String filename) {
@@ -247,6 +257,9 @@ public class MainWindow extends JFrame {
                         System.out.println("File not found - mnuAction");
                     }
                     */
+                    break;
+                case "Toggle Sound":
+                    io.toggleSound();
                     break;
                 case "Save Game...":
                     cpuManager.stop();

@@ -16,16 +16,10 @@ public class MenuBar extends JMenuBar {
         preferences.add(disk);
 
         // Preferences->Ram - NOT SET TO ACTION LISTENER
-        JMenu ram = new JMenu("RAM");
-        JMenuItem ram16k = new JMenuItem("16K");
-        ram.add(ram16k);
-        preferences.add(ram);
+        JMenuItem mnuSound = new JMenuItem("Toggle Sound");
+        mnuSound.addActionListener(newAction);
+        preferences.add(mnuSound);
 
-        // Preferences->Speed - NOT SET TO ACTION LISTENER
-        JMenu speed = new JMenu("Speed");
-        JMenuItem mhz = new JMenuItem("2 Mhz");
-        speed.add(mhz);
-        preferences.add(speed);
         add(preferences);
 
         JMenuItem exitVM = new JMenuItem("Exit");

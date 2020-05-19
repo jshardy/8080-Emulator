@@ -63,7 +63,6 @@ public class SpaceInvadersMemory implements Memory, java.io.Serializable {
         if(address >= VRAM && address < MEMORY_SIZE) {
             setPixel(address, value);
         } else {
-
             address = 0x2000 | (address & 0x03ff);
         }
         memory[address] = value;
