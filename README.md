@@ -1,5 +1,5 @@
-# 8080-Emulator written in Java.
-This is my Senior Project @ Oregon Tech<br>
+# 8080-Emulator written in Java
+Senior Project @ Oregon Tech<br>
 Professor: Calvin Caldwell<br>
 Author: Joshua Hardy<br>
 
