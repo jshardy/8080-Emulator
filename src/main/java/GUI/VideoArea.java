@@ -19,14 +19,7 @@ public class VideoArea extends Canvas {
 
     public VideoArea(Memory mem) {
         memory = mem;
-        //setIgnoreRepaint(true);
-        setBackground(Color.black);
-        //createBufferStrategy(2); // Back buffer
-        //bs = getBufferStrategy();
-        //ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        //gd = ge.getDefaultScreenDevice();
-        //gc = gd.getDefaultConfiguration();
-        //bf = gc.createCompatibleImage(getWidth(), getHeight());
+        setBackground(Color.BLACK);
         setIgnoreRepaint(true);
         setVisible(true);
     }
