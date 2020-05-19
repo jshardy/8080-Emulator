@@ -3,7 +3,7 @@ This is my Senior Project @ Oregon Tech<br>
 Professor: Calvin Caldwell<br>
 Author: Joshua Hardy<br>
 
-Emulator functionally plays Space Invaders without sound.
+Emulator functionally plays Space Invaders with Sound
 
 This is one of my first large projects. I chose the 8080 emulator because I wanted to show the depth
 of my knowledge gained from school, from the basic bit banging to higher level OOP concepts.
