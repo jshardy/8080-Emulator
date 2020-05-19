@@ -1,7 +1,7 @@
 # 8080-Emulator written in Java
 Senior Project @ Oregon Tech<br>
 Professor: Calvin Caldwell<br>
-Author: Joshua Hardy<br>
+Student: Joshua Hardy<br>
 
 Emulator functionally plays Space Invaders with Sound
 
