@@ -9,9 +9,11 @@ This is one of my first large projects. I chose the 8080 emulator because I want
 of my knowledge gained from school, from the basic bit banging to higher level OOP concepts.
 
 How to run:<br>
-    Make sure Java runtime is installed.<br>
-    Download the Emulator.jar and run with java -jar Emulator.jar OR double click on Emulator.jar<br>
-    <br>Select Play/Pause, use arrow buttons to navigate and space bar to shoot.
+Make sure Java runtime is installed.<br>
+Download the Emulator.jar and run with java -jar Emulator.jar OR double click on Emulator.jar<br>
+<a href="https://github.com/jshardy/8080-Emulator/blob/master/Emulator.jar">Emulator.jar Download</a> 
+
+ <br>Select Play/Pause, use arrow buttons to navigate and space bar to shoot.
     
 <br>TODO: Redo GUI in JavaFX
 
